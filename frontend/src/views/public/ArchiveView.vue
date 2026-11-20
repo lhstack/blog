@@ -250,6 +250,7 @@ onMounted(load)
 
 .title-link {
   flex: 1;
+  min-width: 0;
   color: var(--ink-1);
   transition: color var(--dur-fast) linear, transform var(--dur-fast) var(--ease-out);
   overflow: hidden;
@@ -264,6 +265,11 @@ onMounted(load)
 
 .cat {
   flex-shrink: 0;
+  min-width: 0;
+  max-width: 30%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 11.5px;
   padding: 1px 9px;
   border-radius: 999px;
@@ -273,7 +279,7 @@ onMounted(load)
 
 @media (max-width: 900px) {
   .archive-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .year-nav {
     position: static;
@@ -281,6 +287,34 @@ onMounted(load)
   .year-nav ul {
     flex-direction: row;
     flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 600px) {
+  .archive-layout {
+    gap: 16px;
+  }
+
+  .month-block {
+    padding: 16px;
+  }
+
+  .month-block li {
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .date {
+    width: auto;
+    white-space: nowrap;
+  }
+
+  .title-link {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 }
 </style>
