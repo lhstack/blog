@@ -1,0 +1,289 @@
+/* ============ 背景层 ============ */
+.aurora-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(1100px 620px at 12% -8%, rgba(99, 102, 241, 0.28), transparent 62%),
+    radial-gradient(900px 520px at 88% 4%, rgba(34, 211, 238, 0.22), transparent 60%),
+    radial-gradient(1000px 700px at 50% 108%, rgba(168, 85, 247, 0.2), transparent 66%),
+    linear-gradient(180deg, #f7f9fe 0%, #eef2fb 52%, #f6f4ff 100%);
+}
+
+.aurora-stage.is-dark {
+  background:
+    radial-gradient(1100px 620px at 12% -8%, rgba(99, 102, 241, 0.34), transparent 64%),
+    radial-gradient(900px 520px at 88% 4%, rgba(34, 211, 238, 0.22), transparent 60%),
+    radial-gradient(1000px 700px at 50% 108%, rgba(168, 85, 247, 0.26), transparent 66%),
+    linear-gradient(180deg, #070b18 0%, #0b1024 55%, #10101f 100%);
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.55;
+  will-change: transform;
+}
+
+.aurora-blob.b1 {
+  width: 46vw;
+  height: 46vw;
+  left: -10vw;
+  top: -12vw;
+  background: radial-gradient(circle at 30% 30%, rgba(99, 102, 241, 0.85), transparent 68%);
+  animation: blobDrift1 26s ease-in-out infinite;
+}
+
+.aurora-blob.b2 {
+  width: 38vw;
+  height: 38vw;
+  right: -8vw;
+  top: 4vw;
+  background: radial-gradient(circle at 60% 40%, rgba(34, 211, 238, 0.8), transparent 68%);
+  animation: blobDrift2 32s ease-in-out infinite;
+}
+
+.aurora-blob.b3 {
+  width: 52vw;
+  height: 52vw;
+  left: 22vw;
+  bottom: -22vw;
+  background: radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.72), transparent 70%);
+  animation: blobDrift3 38s ease-in-out infinite;
+}
+
+@keyframes blobDrift1 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(6vw, 4vw, 0) scale(1.12); }
+}
+@keyframes blobDrift2 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-5vw, 6vw, 0) scale(1.08); }
+}
+@keyframes blobDrift3 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-7vw, -5vw, 0) scale(1.15); }
+}
+
+/* 网格纹理 */
+.aurora-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(99, 102, 241, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.06) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(circle at 50% 30%, rgba(0, 0, 0, 0.9), transparent 78%);
+  -webkit-mask-image: radial-gradient(circle at 50% 30%, rgba(0, 0, 0, 0.9), transparent 78%);
+  animation: gridSlide 40s linear infinite;
+}
+
+@keyframes gridSlide {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 56px 56px, 56px 56px; }
+}
+
+.particle-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 短暂的移动波纹，不留常驻光标层，不拦截点击。 */
+.slide-ripple {
+  position: fixed; z-index: 31; width: 8px; height: 8px;
+  border: 1px solid rgba(99, 102, 241, .5); border-radius: 50%;
+  pointer-events: none; animation: slide-ripple-fade 380ms ease-out both;
+}
+@keyframes slide-ripple-fade {
+  from { transform: translate(-50%, -50%) scale(.65); opacity: .7; }
+  to { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
+}
+
+/* ============ 鼠标跟随光晕 ============ */
+.cursor-glow {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 420px;
+  height: 420px;
+  margin: -210px 0 0 -210px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 420ms var(--ease-out);
+  background: radial-gradient(
+    circle,
+    rgba(99, 102, 241, 0.18) 0%,
+    rgba(34, 211, 238, 0.12) 34%,
+    rgba(168, 85, 247, 0.06) 56%,
+    transparent 70%
+  );
+  will-change: transform;
+  mix-blend-mode: normal;
+}
+
+.cursor-glow.is-visible {
+  opacity: 1;
+}
+
+.cursor-dot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 3;
+  background: linear-gradient(120deg, var(--brand-1), var(--brand-2));
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.85);
+  opacity: 0;
+  transition: opacity 260ms var(--ease-out), width 180ms var(--ease-out),
+    height 180ms var(--ease-out);
+  will-change: transform;
+}
+
+.cursor-dot.is-visible {
+  opacity: 1;
+}
+
+.cursor-dot.is-active {
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  background: transparent;
+  border: 1.5px solid rgba(99, 102, 241, 0.75);
+  box-shadow: 0 0 18px rgba(99, 102, 241, 0.5);
+}
+
+/* 可交互元素上的悬停反馈（由光标组件动态切换 class） */
+.cursor-glow.is-hover {
+  transform-origin: center;
+}
+
+/* ============ 点击涟漪 ============ */
+.click-ripple {
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 4;
+  border: 1.5px solid rgba(99, 102, 241, 0.55);
+  animation: rippleOut 620ms var(--ease-out) forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes rippleOut {
+  0% {
+    width: 8px;
+    height: 8px;
+    margin: -4px 0 0 -4px;
+    opacity: 0.85;
+  }
+  100% {
+    width: 108px;
+    height: 108px;
+    margin: -54px 0 0 -54px;
+    opacity: 0;
+  }
+}
+
+.click-spark {
+  position: fixed;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 4;
+  animation: sparkFly 620ms var(--ease-out) forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes sparkFly {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--dx), var(--dy), 0) scale(0.2);
+  }
+}
+
+/* ============ 卡片悬停 ============ */
+.hover-lift {
+  transition: transform var(--dur-mid) var(--ease-out), box-shadow var(--dur-mid) var(--ease-out),
+    border-color var(--dur-mid) var(--ease-out);
+}
+
+.hover-lift:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 26px 60px -30px rgba(15, 23, 42, 0.45);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+/* 磁吸按钮（由指令驱动 CSS 变量） */
+.magnetic {
+  transform: translate3d(var(--mx, 0px), var(--my, 0px), 0);
+  transition: transform 240ms var(--ease-out);
+}
+
+/* 标题逐字渐显（供 Hero 使用）
+ * 注意：渐变必须画在 span 自身上。若只在父元素做 background-clip:text，
+ * 子 span 会继承 -webkit-text-fill-color: transparent 但画不到父元素的背景，
+ * 结果就是「字符存在却完全不可见」。此处用 --cx 把每个字符对齐到整行渐变的位置。
+ */
+.char-reveal > span {
+  display: inline-block;
+  opacity: 0;
+  background-image: var(--title-grad);
+  background-size: var(--title-w, 100%) 100%;
+  background-position-x: calc(-1 * var(--cx, 0px));
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  transform: translate3d(0, 0.42em, 0);
+  animation: charIn 620ms var(--ease-out) forwards;
+  animation-delay: calc(var(--i) * 42ms);
+}
+
+@keyframes charIn {
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob,
+  .aurora-grid,
+  .click-ripple,
+  .click-spark {
+    animation: none !important;
+  }
+  .char-reveal > span {
+    opacity: 1;
+    transform: none;
+    animation: none !important;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+@media (max-width: 768px) {
+  .cursor-glow,
+  .cursor-dot {
+    display: none;
+  }
+  .aurora-blob {
+    filter: blur(48px);
+  }
+}

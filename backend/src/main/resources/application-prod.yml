@@ -1,0 +1,33 @@
+# 生产环境基线：文档入口全关（springdoc + knife4j + ApiDocGuardFilter 三层同时关闭）
+blog:
+  api-doc:
+    enabled: false
+  data-dir: ${BLOG_DATA_DIR:./data}
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+spring:
+  sql:
+    init:
+      mode: always
+
+server:
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-exception: false
+  tomcat:
+    # 生产环境不暴露版本信息
+    remoteip:
+      remote-ip-header: x-forwarded-for
+
+logging:
+  level:
+    root: warn
+    com.blog: info
+  file:
+    name: ./logs/blog.log

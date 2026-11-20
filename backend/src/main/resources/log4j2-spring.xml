@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+    <Properties>
+        <Property name="logDir">${env:BLOG_LOG_DIR:-./logs}</Property>
+        <Property name="rollDays">${env:BLOG_LOG_ROLL_DAYS:-7}</Property>
+        <Property name="rollSize">${env:BLOG_LOG_ROLL_SIZE:-100 MB}</Property>
+        <Property name="linePattern">%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%t] %logger{36} - %msg%n%throwable</Property>
+    </Properties>
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="${linePattern}"/>
+        </Console>
+        <RollingFile name="Info" fileName="${logDir}/blog-info.log"
+                     filePattern="${logDir}/blog-info-%d{yyyy-MM-dd}-%i.log.gz" immediateFlush="false">
+            <LevelMatchFilter level="INFO" onMatch="ACCEPT" onMismatch="DENY"/>
+            <PatternLayout pattern="${linePattern}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="${rollDays}"/>
+                <SizeBasedTriggeringPolicy size="${rollSize}"/>
+            </Policies>
+            <DefaultRolloverStrategy fileIndex="nomax"/>
+        </RollingFile>
+        <RollingFile name="Warn" fileName="${logDir}/blog-warn.log"
+                     filePattern="${logDir}/blog-warn-%d{yyyy-MM-dd}-%i.log.gz" immediateFlush="false">
+            <LevelMatchFilter level="WARN" onMatch="ACCEPT" onMismatch="DENY"/>
+            <PatternLayout pattern="${linePattern}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="${rollDays}"/>
+                <SizeBasedTriggeringPolicy size="${rollSize}"/>
+            </Policies>
+            <DefaultRolloverStrategy fileIndex="nomax"/>
+        </RollingFile>
+        <RollingFile name="Error" fileName="${logDir}/blog-error.log"
+                     filePattern="${logDir}/blog-error-%d{yyyy-MM-dd}-%i.log.gz" immediateFlush="false">
+            <LevelMatchFilter level="ERROR" onMatch="ACCEPT" onMismatch="DENY"/>
+            <PatternLayout pattern="${linePattern}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="${rollDays}"/>
+                <SizeBasedTriggeringPolicy size="${rollSize}"/>
+            </Policies>
+            <DefaultRolloverStrategy fileIndex="nomax"/>
+        </RollingFile>
+    </Appenders>
+    <Loggers>
+        <Root level="info">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="Info"/>
+            <AppenderRef ref="Warn"/>
+            <AppenderRef ref="Error"/>
+        </Root>
+    </Loggers>
+</Configuration>

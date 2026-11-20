@@ -1,0 +1,13 @@
+blog:
+  # 开发环境打开接口文档：http://localhost:8080/doc.html
+  api-doc:
+    enabled: true
+  data-dir: ./data
+
+springdoc:
+  show-actuator: false
+
+logging:
+  level:
+    com.blog: debug
+    org.springframework.web: info

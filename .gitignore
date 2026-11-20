@@ -1,0 +1,38 @@
+# Java / Maven
+backend/target/
+*.class
+*.jar.original
+
+# 运行期数据与日志（SQLite 文件、附件和音乐不纳入版本控制）
+/data/
+backend/data/
+backend/logs/
+backend/logs-*.out
+backend/logs-*.err
+backend/.pid
+backend/.pidprod
+logs/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+# 旧的前端构建副本；发布时 Maven 直接从 frontend/dist/ 打包
+/backend/src/main/resources/static/
+npm-debug.log*
+
+# 本地配置和浏览器验证产物
+.env
+.env.*
+!.env.example
+/.shots/
+/.chrome-profile/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

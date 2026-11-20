@@ -1,0 +1,112 @@
+server:
+  port: 8080
+  shutdown: graceful
+
+spring:
+  application:
+    name: blog
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    hikari:
+      pool-name: blog-sqlite-pool
+      maximum-pool-size: 8
+      minimum-idle: 1
+      connection-timeout: 10000
+  sql:
+    init:
+      mode: always
+      encoding: UTF-8
+      schema-locations: classpath:db/schema.sql
+      # 默认不加载任何种子数据脚本：保持空库启动。
+      # 需要演示数据时，在开发环境另行指定 data-locations（见 db/demo-data.sql 约定）。
+      continue-on-error: false
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 21MB
+      resolve-lazily: true
+  web:
+    resources:
+      add-mappings: true
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    type-handlers-package: com.blog.infrastructure.persistence.typehandler
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+sa-token:
+  token-name: blog-token
+  timeout: 86400
+  active-timeout: -1
+  is-concurrent: true
+  is-share: true
+  token-style: uuid
+  is-read-cookie: false
+  is-read-header: true
+  is-log: false
+
+# 接口文档（默认关闭，生产基线）：
+#   开发环境 -Dspring.profiles.active=dev 后访问 http://localhost:8080/doc.html
+#   文档入口的关闭由三层共同控制：
+#   1) blog.api-doc.enabled 驱动 springdoc 是否注册 /v3/api-docs 与 swagger-ui；
+#   2) ApiDocGuardFilter 在关闭时直接返回 404（含 /doc.html、/webjars/**）；
+#   3) application-prod.yml 再显式设 false，构成不可覆盖的生产基线。
+springdoc:
+  api-docs:
+    enabled: ${blog.api-doc.enabled:false}
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: ${blog.api-doc.enabled:false}
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  group-configs:
+    - group: public
+      display-name: 前台接口
+      paths-to-match: /api/public/**
+    - group: admin
+      display-name: 后台接口
+      paths-to-match: /api/admin/**
+    - group: auth
+      display-name: 认证接口
+      paths-to-match: /api/auth/**
+
+blog:
+  # 接口文档默认关闭（生产安全基线）；开发环境用 dev profile 打开
+  api-doc:
+    enabled: false
+  # SQLite 数据目录。默认相对启动工作目录 ./data；
+  # 建议部署时用 BLOG_DATA_DIR 指向固定绝对路径，避免换目录启动后指向另一个库。
+  data-dir: ${BLOG_DATA_DIR:./data}
+  admin:
+    username: admin
+    password: admin123
+    nickname: 站长
+  site:
+    # 公网站点根地址，用于生成 RSS 中的绝对链接。
+    url: ${BLOG_SITE_URL:http://localhost:8080}
+    name: 云间小筑
+    title: 个人博客
+    description: 记录工程实践与生活碎片。
+    avatar: https://api.dicebear.com/9.x/notionists/svg?seed=yunjian
+    email: hello@yunjian.dev
+    github: https://github.com/
+    start-year: 2021
+    typewriter-zone: ${BLOG_TYPEWRITER_ZONE:Asia/Shanghai}
+
+logging:
+  level:
+    root: info
+    com.blog: debug
