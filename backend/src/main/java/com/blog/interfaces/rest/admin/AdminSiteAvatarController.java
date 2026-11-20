@@ -3,6 +3,7 @@ package com.blog.interfaces.rest.admin;
 import com.blog.application.setting.SiteAvatarApplicationService;
 import com.blog.application.setting.SiteAvatarApplicationService.AvatarView;
 import com.blog.domain.common.DomainException;
+import com.blog.interfaces.rest.support.AvatarUploadSupport;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.MediaType;
@@ -38,6 +39,7 @@ public class AdminSiteAvatarController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public AvatarView upload(@RequestPart("file") MultipartFile file) throws IOException {
+        AvatarUploadSupport.requireImageDecoder();
         if (file.getSize() > SiteAvatarApplicationService.MAX_SIZE) {
             throw DomainException.invalid("头像不能超过 5 MB");
         }

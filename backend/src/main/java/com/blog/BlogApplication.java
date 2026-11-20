@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 @SpringBootApplication
-@MapperScan("com.blog.infrastructure.persistence.mapper")
+@MapperScan(basePackages = "com.blog.infrastructure.persistence.mapper", sqlSessionTemplateRef = "sqlSessionTemplate")
 @EnableConfigurationProperties
 public class BlogApplication {
 

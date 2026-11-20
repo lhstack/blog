@@ -8,6 +8,59 @@
 - **内容管理**：Markdown 编辑与预览、文章发布／撤回／置顶、分类标签维护、评论审核和附件管理。文章、评论、附件的筛选在服务端分页前执行；后台预览不增加阅读量。
 - **站点设置**：站点资料、头像、备案信息、背景音乐和账号资料。独立的「首页打字机」菜单支持最多 30 条文案，可按站点时区配置生效星期、时段和播放顺序；起止相同表示全天，跨午夜以勾选的星期为开始日。
 
+## 页面截图
+
+以下截图来自本地运行的演示站点。示例文章分为「工程实践」「前端设计」「生活随笔」，包含已发布文章、置顶推荐和后台草稿；首次启动不会自动导入这些内容。
+
+### 博客首页
+
+![博客首页：站点介绍、实时统计与置顶推荐](images/home.webp)
+
+<details>
+<summary>文章列表与详情</summary>
+
+#### 文章列表 · `/articles`
+
+![文章列表：分类与标签筛选、搜索、文章卡片](images/articles.webp)
+
+#### 文章详情 · `/articles/:id`
+
+![文章详情：封面、Markdown 正文、代码块与右侧目录](images/article-detail.webp)
+
+</details>
+
+<details>
+<summary>归档（桌面与移动端）和关于页</summary>
+
+#### 归档 · `/archives`
+
+![桌面归档页：月份导航和按月分组的文章](images/archives.webp)
+
+<p><img src="images/archives-mobile.webp" alt="移动端归档页：月份导航、自动换行的标题与分类" width="390"></p>
+
+#### 关于 · `/about`
+
+![关于页：站点名片、栏目介绍和 RSS 订阅说明](images/about.webp)
+
+</details>
+
+<details>
+<summary>管理后台：仪表盘、文章列表与编辑器</summary>
+
+#### 仪表盘 · `/admin/dashboard`
+
+![后台仪表盘：文章与评论统计、发布节奏和最近更新](images/admin-dashboard.webp)
+
+#### 文章管理 · `/admin/articles`
+
+![文章管理：搜索与筛选、发布状态和行内操作](images/admin-articles.webp)
+
+#### 文章编辑 · `/admin/articles/:id/edit`
+
+![文章编辑器：Markdown 草稿、分类标签与发布操作](images/admin-editor.webp)
+
+</details>
+
 ## 技术栈与环境
 
 | 用途 | 选型 |
@@ -49,6 +102,43 @@ npm run dev
 - Vite 将 `/api` 和 `/rss.xml` 代理到 `localhost:8080`。
 - 本地首次初始化默认账号为 `admin` / `admin123`。仅用于本地开发；生产环境请在首次启动前配置强密码。初始化不会为已存在的同名账号重置密码。
 
+## Docker Compose 部署
+
+安装 Docker 和 Compose 插件（`docker compose version`）后，在仓库根目录执行：
+
+```sh
+cp .env.example .env
+# 编辑 .env，设置必填的 BLOG_ADMIN_PASSWORD（仅用于初始化管理员）。
+```
+
+两个 Compose 文件可独立运行。需要同时运行时，分别执行下面两条命令：
+
+| 版本 | 启动命令 | 默认访问地址 |
+| --- | --- | --- |
+| GraalVM Native Image（Alpine） | `docker compose -f docker-compose.native.yml up -d --build --wait` | <http://127.0.0.1:8081/> |
+| Spring Boot JAR（Java 25） | `docker compose -f docker-compose.jar.yml up -d --build --wait` | <http://127.0.0.1:8082/> |
+
+两版都内置前端，后台入口为 `/admin/login`。默认只绑定回环地址，分别使用独立的 SQLite、附件和日志卷；两版的文章和账号修改不会同步。可在 `.env` 中调整端口和监听地址；使用反向代理时，将对应的 `BLOG_NATIVE_SITE_URL` 或 `BLOG_JAR_SITE_URL` 设为访客使用的公网地址，保证 RSS 链接正确。
+
+以下以 JAR 版为例，操作 Native 版时将文件名换成 `docker-compose.native.yml`：
+
+```sh
+docker compose -f docker-compose.jar.yml ps
+docker compose -f docker-compose.jar.yml logs -f
+docker compose -f docker-compose.jar.yml down  # 只停止 JAR 版并保留数据卷。
+```
+
+不要使用 `down -v`，除非需要清空对应版本的数据。若用旧的合并配置启动过，旧数据卷不会被新项目自动使用，请先备份旧数据再迁移。
+
+Native Image 首次从源码构建较慢。也可下载 [同架构的 Alpine 镜像归档](#graalvm-native-imagemacosalpine-dockerwindows)，直接导入后运行，不必重新编译：
+
+```sh
+docker load -i blog-alpine-arm64.tar.gz  # x86-64 主机改为 blog-alpine-amd64.tar.gz
+BLOG_NATIVE_IMAGE=blog:alpine-arm64 docker compose -f docker-compose.native.yml up -d --no-build --wait
+```
+
+x86-64 主机同时将 `BLOG_NATIVE_IMAGE` 改为 `blog:alpine-amd64`；也可以在 `.env` 中设置该变量。需要上传站点或账号头像时，选择 JAR 版。
+
 ## 打包与部署
 
 先构建前端，再从根目录打包后端。**Maven 不会执行前端构建**，但会将已有的 `frontend/dist/` 并入 JAR 的 `classpath:/static`；没有构建前端也可以生成仅提供接口的 JAR。
@@ -79,6 +169,43 @@ java -jar backend/target/blog-backend-1.0.0.jar --spring.profiles.active=prod
 | `SERVER_PORT` | 后端端口，默认 `8080`。 |
 
 若独立部署前端，请将 `/api/**` 和 `/rss.xml` 转发到后端，其余前端路由回落到 `index.html`。反向代理应关闭 SSE 路径的响应缓冲，避免实时统计被攒成批量输出。
+
+### GraalVM Native Image（macOS、Alpine Docker、Windows）
+
+原生版内置前端，无需安装 Java。将 [Native Image 工作流](.github/workflows/native-image.yml) 推送到默认分支后，可在 **Actions → Native Image → Run workflow** 手动构建，也可以推送 `v*` 标签触发。每个目标在对应架构的 runner 上独立构建并做冒烟测试，成功后在 **Artifacts** 下载：
+
+| 目标 | 产物 | 说明 |
+| --- | --- | --- |
+| macOS ARM64 | `blog-macos-arm64.tar.gz` | Apple Silicon，解压后运行 `./blog --spring.profiles.active=prod` |
+| Linux ARM64 / x86-64 | `blog-alpine-arm64.tar.gz` / `blog-alpine-amd64.tar.gz` | Alpine Docker 镜像归档，用 `docker load` 导入 |
+| Windows x64 | `blog.exe`（Artifact `blog-windows-x64`） | 解压后运行 `.\blog.exe --spring.profiles.active=prod` |
+
+#### 本地构建 macOS 或 Windows 可执行文件
+
+设置 `JAVA_HOME` 指向 GraalVM Community JDK 25，并确认 `native-image --version` 和 `mvn -v`。macOS 需要 Xcode Command Line Tools；Windows 需要 Visual Studio 2022 Build Tools（C++ x64 工具链和 Windows SDK），请在 **x64 Native Tools Command Prompt** 中执行。先按上文构建前端，再从仓库根目录运行：
+
+```sh
+mvn -f backend/pom.xml -Pnative clean native:compile
+```
+
+产物是 `backend/target/blog` 或 `backend/target/blog.exe`。macOS 不直接交叉编译 Windows；请在 Windows 环境或工作流中构建 `.exe`。
+
+#### 构建或运行 Alpine Docker 镜像
+
+```sh
+# 二选一：本地构建，或导入同架构的镜像归档。x86-64 主机将 arm64 改为 amd64。
+docker build --platform linux/arm64 -t blog:alpine-arm64 .
+docker load -i blog-alpine-arm64.tar.gz
+
+# 已在环境中设置 BLOG_ADMIN_PASSWORD 后再启动；不要使用默认生产密码。
+docker run -d --name blog -p 127.0.0.1:8080:8080 \
+  -e BLOG_ADMIN_PASSWORD -e BLOG_SITE_URL=https://blog.example.com \
+  -v blog-data:/var/lib/blog -v blog-logs:/var/log/blog blog:alpine-arm64
+```
+
+容器使用 Alpine 作为运行镜像，内置应用和 SQLite JNI 所需的 glibc 运行库，不是纯 musl 可执行文件。容器进程以 UID/GID 10001 运行；改用宿主机目录挂载时须保证这一用户有写权限。站点数据存放在 `/var/lib/blog`，日志在 `/var/log/blog`，更换容器前请备份数据卷。
+
+Native 版按 `prod` 生成 AOT，不提供开发接口文档。它暂不支持上传站点头像或账号头像（依赖 AWT/ImageIO）；可填写图片 URL，也可继续使用已经保存的头像。需要上传头像时使用普通 JAR。普通 JAR 的构建方式和功能不变。
 
 ### 数据、备份与日志
 
@@ -118,7 +245,11 @@ backend/
 frontend/
 ├── public/             # 不经 Vite 转换的静态源文件
 └── src/                # 组件、页面、布局、路由、API 与样式
-tools/                  # 本地浏览器诊断脚本
+tools/                  # 本地浏览器诊断与 Native Image 冒烟脚本
+images/                 # README 页面截图
+Dockerfile              # 共享前端构建，提供 Native 和 JAR 镜像目标
+docker-compose.native.yml  # Native Image 容器部署
+docker-compose.jar.yml     # JAR 容器部署
 ```
 
 依赖方向为 `interfaces → application → domain`，基础设施层实现领域仓储接口。源码约定见 [AGENTS.md](AGENTS.md)。

@@ -15,7 +15,7 @@
     <artifactId>blog-backend</artifactId>
     <version>1.0.0</version>
     <name>blog-backend</name>
-    <description>Personal blog backend (DDD, Java 23, virtual threads, Reactor)</description>
+    <description>Personal blog backend (DDD, Java 25, virtual threads, Reactor)</description>
 
     <properties>
         <java.version>25</java.version>
@@ -186,4 +186,30 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Spring Boot parent 的 native profile 负责 process-aot；这里补充可执行文件配置。 -->
+        <profile>
+            <id>native</id>
+            <properties>
+                <!-- 2.25 includes reachability metadata for Log4j2 plugins. -->
+                <log4j2.version>2.25.4</log4j2.version>
+                <spring-boot.aot.jvmArguments>-Dspring.profiles.active=prod</spring-boot.aot.jvmArguments>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <configuration>
+                            <imageName>blog</imageName>
+                            <buildArgs>
+                                <buildArg>-march=compatibility</buildArg>
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

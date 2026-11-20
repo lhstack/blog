@@ -1,0 +1,11 @@
+{
+  "resources": {
+    "includes": [
+      { "pattern": "db/schema\\.sql" },
+      { "pattern": "static/.*" },
+      { "pattern": "log4j2-spring\\.xml" },
+      { "pattern": "log4j2\\.component\\.properties" },
+      { "pattern": "org/springframework/boot/logging/log4j2/.*\\.xml" }
+    ]
+  }
+}

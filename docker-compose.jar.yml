@@ -1,0 +1,32 @@
+name: blog-jar
+
+services:
+  blog-jar:
+    image: blog:jar
+    build:
+      context: .
+      target: jar-runtime
+    restart: unless-stopped
+    pull_policy: never
+    stop_grace_period: 40s
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/api/public/site"]
+      interval: 10s
+      timeout: 3s
+      start_period: 30s
+      retries: 3
+    ports:
+      - "${BLOG_BIND_ADDRESS:-127.0.0.1}:${BLOG_JAR_PORT:-8082}:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      BLOG_ADMIN_USERNAME: ${BLOG_ADMIN_USERNAME:-admin}
+      BLOG_ADMIN_PASSWORD: ${BLOG_ADMIN_PASSWORD:?Set BLOG_ADMIN_PASSWORD in .env before starting}
+      BLOG_TYPEWRITER_ZONE: ${BLOG_TYPEWRITER_ZONE:-Asia/Shanghai}
+      BLOG_SITE_URL: ${BLOG_JAR_SITE_URL:-http://127.0.0.1:${BLOG_JAR_PORT:-8082}}
+    volumes:
+      - jar-data:/var/lib/blog
+      - jar-logs:/var/log/blog
+
+volumes:
+  jar-data:
+  jar-logs:

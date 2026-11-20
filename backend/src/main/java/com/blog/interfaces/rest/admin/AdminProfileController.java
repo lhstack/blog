@@ -6,6 +6,7 @@ import com.blog.application.setting.SiteAvatarApplicationService;
 import com.blog.domain.common.DomainException;
 import com.blog.interfaces.rest.auth.TokenIssuer;
 import com.blog.interfaces.rest.support.ApiResponse;
+import com.blog.interfaces.rest.support.AvatarUploadSupport;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -51,6 +52,7 @@ public class AdminProfileController {
 
     @PostMapping(path = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ProfileView uploadAvatar(@RequestPart("file") MultipartFile file) throws IOException {
+        AvatarUploadSupport.requireImageDecoder();
         if (file.getSize() > SiteAvatarApplicationService.MAX_SIZE) {
             throw DomainException.invalid("请选择不超过 5 MB 的头像图片");
         }
