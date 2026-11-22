@@ -3,10 +3,11 @@ package com.blog.domain.attachment;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.Optional;
-import java.util.UUID;
 
 public interface AttachmentStorage {
-    String store(UUID id, InputStream input);
-    Optional<Path> find(UUID id);
-    void remove(UUID id);
+    StoredFile store(String name, InputStream input, boolean avatar);
+    Optional<Path> find(String filePath);
+    void remove(String filePath);
+
+    record StoredFile(String filePath, String mediaType) {}
 }

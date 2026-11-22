@@ -52,9 +52,9 @@ public class AdminAttachmentController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID id) { service.delete(id); }
 
-    @GetMapping("/{id}/{kind}")
-    public ResponseEntity<Resource> download(@PathVariable UUID id, @PathVariable String kind) {
-        return AttachmentResponse.of(service.download(id, kind, true));
+    @GetMapping("/files/{filename}")
+    public ResponseEntity<Resource> download(@PathVariable String filename) {
+        return AttachmentResponse.of(service.download(filename, true));
     }
 
     record RenameRequest(@NotBlank @Size(max = 255) String name) {}

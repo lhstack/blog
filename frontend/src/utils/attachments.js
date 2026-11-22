@@ -1,7 +1,17 @@
-const attachmentPattern = /^\/api\/public\/attachments\/([0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})\/(image|audio|video|download)$/
+const attachmentPattern = /^\/media\/([a-z0-9][a-z0-9-]{0,47}-[0-9a-f]{16}\.([a-z0-9]{2,4}))$/
+const kinds = new Map([
+  ...['jpg', 'png', 'webp', 'gif', 'avif'].map(ext => [ext, 'image']),
+  ...['wav', 'mp3', 'm4a'].map(ext => [ext, 'audio']),
+  ...['mp4', 'webm'].map(ext => [ext, 'video']),
+  ['bin', 'download']
+])
+
+export function attachmentFilename(url) {
+  return attachmentPattern.exec(url)?.[1]
+}
 
 export function attachmentKind(url) {
-  return attachmentPattern.exec(url)?.[2]
+  return kinds.get(attachmentPattern.exec(url)?.[2])
 }
 
 export function attachmentMarkdown(file) {

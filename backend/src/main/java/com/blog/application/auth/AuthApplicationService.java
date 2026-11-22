@@ -1,9 +1,11 @@
 package com.blog.application.auth;
 
+import com.blog.application.attachment.AttachmentApplicationService.Download;
 import com.blog.application.auth.AuthViews.ProfileView;
+import com.blog.application.setting.AvatarFiles;
 import com.blog.application.setting.SiteAvatarApplicationService;
+import com.blog.domain.attachment.AttachmentPaths;
 import com.blog.domain.user.ProfileAvatarRepository;
-import com.blog.domain.user.ProfileAvatarRepository.Image;
 import com.blog.domain.common.DomainException;
 import com.blog.domain.user.PasswordHasher;
 import com.blog.domain.user.User;
@@ -12,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * 账号用例：校验凭证、修改资料。
@@ -23,14 +24,16 @@ import java.util.UUID;
 public class AuthApplicationService {
 
     private final UserRepository userRepository;
-    public static final String AVATAR_PATH = "/api/public/profile-avatar/";
     private final PasswordHasher passwordHasher;
     private final ProfileAvatarRepository avatars;
+    private final AvatarFiles avatarFiles;
 
-    public AuthApplicationService(UserRepository userRepository, PasswordHasher passwordHasher, ProfileAvatarRepository avatars) {
+    public AuthApplicationService(UserRepository userRepository, PasswordHasher passwordHasher,
+                                  ProfileAvatarRepository avatars, AvatarFiles avatarFiles) {
         this.userRepository = userRepository;
         this.passwordHasher = passwordHasher;
         this.avatars = avatars;
+        this.avatarFiles = avatarFiles;
     }
 
     @Transactional(readOnly = true)
@@ -52,30 +55,24 @@ public class AuthApplicationService {
     public ProfileView updateProfile(Long userId, String nickname, String avatar, String email) {
         User user = requireUser(userId);
         String value = avatar == null || avatar.isBlank() ? null : avatar.strip();
-        if (!java.util.Objects.equals(user.avatar(), value)) {
-            if (value != null && !SiteAvatarApplicationService.isWebUrl(value)) {
-                throw DomainException.invalid("请输入有效的 HTTP(S) 图片 URL");
-            }
-            avatars.clear(userId);
+        if (!java.util.Objects.equals(user.avatar(), value) && value != null && !SiteAvatarApplicationService.isWebUrl(value)) {
+            throw DomainException.invalid("请输入有效的 HTTP(S) 图片 URL");
         }
         user.updateProfile(nickname, value, email);
         return toProfile(userRepository.save(user));
     }
 
     @Transactional
-    public ProfileView uploadAvatar(Long userId, byte[] bytes) {
-        var picture = SiteAvatarApplicationService.validateImage(bytes);
-        var id = UUID.randomUUID();
+    public ProfileView uploadAvatar(Long userId, String filename, byte[] bytes) {
         User user = requireUser(userId);
-        avatars.save(userId, id.toString(), picture.mediaType(), picture.content());
-        user.updateProfile(user.nickname(), AVATAR_PATH + id, user.email());
+        String location = AttachmentPaths.PROFILE_AVATAR + avatarFiles.upload(filename, bytes);
+        user.updateProfile(user.nickname(), location, user.email());
         return toProfile(userRepository.save(user));
     }
 
-    public Image avatar(UUID id) {
-        Image image = avatars.find(id.toString());
-        if (image == null) throw DomainException.notFound("头像文件不存在");
-        return image;
+    @Transactional(readOnly = true)
+    public Download avatar(String filename) {
+        return avatarFiles.image(filename, avatars.isReferenced(AttachmentPaths.PROFILE_AVATAR + filename));
     }
 
     @Transactional

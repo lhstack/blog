@@ -168,7 +168,15 @@ java -jar backend/target/blog-backend-1.0.0.jar --spring.profiles.active=prod
 | `BLOG_LOG_DIR` | 日志目录，默认 `./logs`。 |
 | `SERVER_PORT` | 后端端口，默认 `8080`。 |
 
-若独立部署前端，请将 `/api/**` 和 `/rss.xml` 转发到后端，其余前端路由回落到 `index.html`。反向代理应关闭 SSE 路径的响应缓冲，避免实时统计被攒成批量输出。
+若独立部署前端，请将 `/api/**`、`/media/**` 和 `/rss.xml` 转发到后端，其余前端路由回落到 `index.html`。反向代理应关闭 SSE 路径的响应缓冲，避免实时统计被攒成批量输出。
+
+### 附件和头像文件路径
+
+普通附件的公开链接是 `/media/<文件名.后缀>`；上传的站点头像和账号头像分别使用 `/media/site-avatar/<文件名.后缀>` 和 `/media/profile-avatar/<文件名.后缀>`。后台预览、下载通过 `/api/admin/attachments/files/<文件名.后缀>` 读取。改显示名称不改变已发出的链接。外链头像不受影响。
+
+新上传的普通附件存放在 `${BLOG_DATA_DIR}/attachments/public/`，上传成功后即可通过链接匿名访问，不受文章发布或撤回影响。头像存放在 `attachments/avatars/`，只通过当前头像链接公开。正在被引用的附件不能删除。不要直接暴露整个附件目录。普通附件和账号头像保留 `no-store`；站点头像保留 5 分钟公开缓存。已经存放在 `attachments/` 根目录的文件不会被批量公开；如果此前上传的普通附件尚未对外公开，可重新上传获得立即可分享的新链接。
+
+新库用 `blog_attachment.file_path` 保存相对于 `${BLOG_DATA_DIR}` 的完整文件路径，例如 `attachments/public/cover-a7f3b91c01234567.webp`。附件表不做自动升级；已经初始化旧表结构的数据库，需先重建空的附件表再使用新版本。
 
 ### GraalVM Native Image（macOS、Alpine Docker、Windows）
 

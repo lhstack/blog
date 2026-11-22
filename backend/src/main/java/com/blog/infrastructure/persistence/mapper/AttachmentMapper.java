@@ -21,27 +21,44 @@ public interface AttachmentMapper {
             </where>
             """;
 
-    @Select("<script>SELECT * FROM blog_attachment " + FILTERS + " ORDER BY created_at DESC, id DESC LIMIT #{limit} OFFSET #{offset}</script>")
+    String FIELDS = "a.id, a.name, a.media_type, a.size, a.created_at, a.file_path";
+    String TABLE = " FROM blog_attachment a";
+
+    @Select("<script>SELECT " + FIELDS + TABLE + FILTERS + " ORDER BY a.created_at DESC, a.id DESC LIMIT #{limit} OFFSET #{offset}</script>")
     List<Attachment> list(@Param("kind") String kind, @Param("keyword") String keyword,
                           @Param("from") String from, @Param("until") String until,
                           @Param("limit") int limit, @Param("offset") long offset);
 
-    @Select("<script>SELECT COUNT(*) FROM blog_attachment " + FILTERS + "</script>")
+    @Select("<script>SELECT COUNT(*)" + TABLE + FILTERS + "</script>")
     long count(@Param("kind") String kind, @Param("keyword") String keyword,
                @Param("from") String from, @Param("until") String until);
 
-    @Select("SELECT * FROM blog_attachment WHERE id = #{id}")
+    @Select("SELECT " + FIELDS + TABLE + " WHERE a.id = #{id}")
     Attachment find(@Param("id") String id);
 
-    @Select("""
-            SELECT f.* FROM blog_attachment f WHERE f.id = #{id} AND EXISTS (
-                SELECT 1 FROM blog_article_attachment r JOIN blog_article a ON a.id = r.article_id
-                WHERE r.attachment_id = f.id AND a.status = 'PUBLISHED'
-            )
-            """)
-    Attachment findPublished(@Param("id") String id);
+    @Select("SELECT " + FIELDS + TABLE + " WHERE a.file_path IN (#{publicPath}, #{avatarPath}, #{existingPath}) LIMIT 1")
+    Attachment findByFilename(@Param("publicPath") String publicPath, @Param("avatarPath") String avatarPath,
+                              @Param("existingPath") String existingPath);
 
-    @Insert("INSERT INTO blog_attachment VALUES (#{id}, #{name}, #{mediaType}, #{size}, #{createdAt})")
+    @Select("SELECT " + FIELDS + TABLE + " " + """
+            WHERE a.file_path = #{publicPath}
+               OR (a.file_path = #{existingPath}
+                   AND EXISTS (
+                       SELECT 1 FROM blog_article_attachment r JOIN blog_article p ON p.id = r.article_id
+                       WHERE r.attachment_id = a.id AND p.status = 'PUBLISHED'
+                   )
+                   AND NOT EXISTS (SELECT 1 FROM blog_site_avatar WHERE location = #{siteAvatar})
+                   AND NOT EXISTS (SELECT 1 FROM blog_user WHERE avatar = #{profileAvatar}))
+            ORDER BY CASE WHEN a.file_path = #{publicPath} THEN 0 ELSE 1 END
+            LIMIT 1
+            """)
+    Attachment findPublicByFilename(@Param("publicPath") String publicPath, @Param("existingPath") String existingPath,
+                                    @Param("siteAvatar") String siteAvatar, @Param("profileAvatar") String profileAvatar);
+
+    @Insert("""
+            INSERT INTO blog_attachment (id, name, media_type, size, created_at, file_path)
+            VALUES (#{id}, #{name}, #{mediaType}, #{size}, #{createdAt}, #{filePath})
+            """)
     void insert(Attachment attachment);
 
     @Update("UPDATE blog_attachment SET name = #{name} WHERE id = #{id}")
@@ -50,8 +67,10 @@ public interface AttachmentMapper {
     @Delete("""
             DELETE FROM blog_attachment WHERE id = #{id}
             AND NOT EXISTS (SELECT 1 FROM blog_article_attachment WHERE attachment_id = #{id})
+            AND NOT EXISTS (SELECT 1 FROM blog_site_avatar WHERE location = #{siteAvatar})
+            AND NOT EXISTS (SELECT 1 FROM blog_user WHERE avatar = #{profileAvatar})
             """)
-    int deleteIfUnused(@Param("id") String id);
+    int deleteIfUnused(@Param("id") String id, @Param("siteAvatar") String siteAvatar, @Param("profileAvatar") String profileAvatar);
 
     @Delete("DELETE FROM blog_article_attachment WHERE article_id = #{articleId}")
     void clearReferences(@Param("articleId") Long articleId);

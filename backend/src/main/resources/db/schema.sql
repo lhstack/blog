@@ -86,13 +86,13 @@ CREATE TABLE IF NOT EXISTS blog_site_presentation (
     typewriter_text TEXT NOT NULL
 );
 
--- 关于页正文独立存储；未配置时不需要种子记录。
 CREATE TABLE IF NOT EXISTS blog_attachment (
     id TEXT PRIMARY KEY NOT NULL,
     name TEXT NOT NULL,
     media_type TEXT NOT NULL,
     size INTEGER NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    file_path TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS blog_article_attachment (
@@ -103,13 +103,6 @@ CREATE TABLE IF NOT EXISTS blog_article_attachment (
 
 CREATE INDEX IF NOT EXISTS idx_article_attachment_file ON blog_article_attachment(attachment_id);
 
-CREATE TABLE IF NOT EXISTS blog_profile_avatar (
-    user_id INTEGER PRIMARY KEY REFERENCES blog_user(id) ON DELETE CASCADE,
-    id TEXT NOT NULL UNIQUE,
-    media_type TEXT NOT NULL,
-    content BLOB NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS blog_site_identity (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     name TEXT NOT NULL,
@@ -117,6 +110,7 @@ CREATE TABLE IF NOT EXISTS blog_site_identity (
     description TEXT NOT NULL
 );
 
+-- 关于页正文独立存储；未配置时不需要种子记录。
 CREATE TABLE IF NOT EXISTS blog_site_about (
     id       INTEGER PRIMARY KEY CHECK (id = 1),
     markdown TEXT NOT NULL
@@ -130,7 +124,5 @@ CREATE TABLE IF NOT EXISTS blog_background_music (
 
 CREATE TABLE IF NOT EXISTS blog_site_avatar (
     id         INTEGER PRIMARY KEY CHECK (id = 1),
-    location   TEXT,
-    media_type TEXT,
-    content    BLOB
+    location   TEXT
 );

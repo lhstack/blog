@@ -1,15 +1,16 @@
 package com.blog.interfaces.rest.publicapi;
 
 import com.blog.application.setting.SiteAvatarApplicationService;
-import com.blog.domain.setting.SiteAvatarRepository.AvatarImage;
+import com.blog.domain.attachment.AttachmentPaths;
+import com.blog.interfaces.rest.support.AttachmentResponse;
+import org.springframework.core.io.Resource;
 import org.springframework.http.CacheControl;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.UUID;
+import java.time.Duration;
 
 @RestController
 public class PublicSiteAvatarController {
@@ -19,12 +20,8 @@ public class PublicSiteAvatarController {
         this.service = service;
     }
 
-    @GetMapping("/api/public/site/avatar/{id}")
-    public ResponseEntity<byte[]> image(@PathVariable UUID id) {
-        AvatarImage image = service.image(id);
-        return ResponseEntity.ok().contentType(MediaType.parseMediaType(image.mediaType()))
-                .cacheControl(CacheControl.noCache())
-                .header("X-Content-Type-Options", "nosniff")
-                .body(image.content());
+    @GetMapping(AttachmentPaths.SITE_AVATAR + "{filename}")
+    public ResponseEntity<Resource> image(@PathVariable String filename) {
+        return AttachmentResponse.of(service.image(filename), CacheControl.maxAge(Duration.ofMinutes(5)).cachePublic());
     }
 }

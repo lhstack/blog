@@ -56,7 +56,7 @@ public class AdminProfileController {
         if (file.getSize() > SiteAvatarApplicationService.MAX_SIZE) {
             throw DomainException.invalid("请选择不超过 5 MB 的头像图片");
         }
-        return authService.uploadAvatar(tokenIssuer.currentUserId(), file.getBytes());
+        return authService.uploadAvatar(tokenIssuer.currentUserId(), file.getOriginalFilename(), file.getBytes());
     }
 
     @Operation(summary = "修改密码")

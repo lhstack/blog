@@ -1,6 +1,7 @@
 package com.blog.application.attachment;
 
 import com.blog.domain.attachment.Attachment;
+import com.blog.domain.attachment.AttachmentPaths;
 import com.blog.domain.attachment.AttachmentRepository;
 import com.blog.domain.attachment.AttachmentStorage;
 import com.blog.domain.common.DomainException;
@@ -10,6 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -41,18 +44,30 @@ public class AttachmentApplicationService {
                 repository.count(query), safePage, PAGE_SIZE);
     }
 
+    @Transactional
     public AttachmentView upload(String filename, long size, InputStream input) {
+        return store(filename, size, input, false);
+    }
+
+    @Transactional
+    public String uploadAvatar(String filename, long size, InputStream input) {
+        return store(filename, size, input, true).filename();
+    }
+
+    private AttachmentView store(String filename, long size, InputStream input, boolean avatar) {
         if (size <= 0 || size > MAX_BYTES) throw DomainException.invalid("请选择不超过 20 MB 的文件");
         String path = filename == null ? "" : filename.replace('\\', '/');
         String name = validateName(path.substring(path.lastIndexOf('/') + 1));
         UUID id = UUID.randomUUID();
-        var attachment = new Attachment(id.toString(), name, storage.store(id, input), size, LocalDateTime.now());
-        try {
-            repository.insert(attachment);
-        } catch (RuntimeException failure) {
-            try { storage.remove(id); } catch (UncheckedIOException cleanup) { failure.addSuppressed(cleanup); }
-            throw failure;
-        }
+        var stored = storage.store(name, input, avatar);
+        var attachment = new Attachment(id.toString(), name, stored.mediaType(), size, LocalDateTime.now(), stored.filePath());
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_ROLLED_BACK) removeFile(stored.filePath());
+            }
+        });
+        repository.insert(attachment);
         return AttachmentView.of(attachment);
     }
 
@@ -63,18 +78,24 @@ public class AttachmentApplicationService {
     }
 
     public void delete(UUID id) {
-        if (!repository.deleteIfUnused(id.toString())) {
+        var file = repository.find(id.toString()).orElseThrow(AttachmentApplicationService::notFound);
+        if (!repository.deleteIfUnused(id.toString(), file.filename())) {
             if (repository.find(id.toString()).isEmpty()) throw notFound();
-            throw DomainException.conflict("附件已被文章引用，请先解除引用再删除");
+            throw DomainException.conflict("附件正在被文章或头像引用，请先解除引用再删除");
         }
-        try { storage.remove(id); }
-        catch (UncheckedIOException ex) { log.warn("附件记录已删除，但磁盘清理失败：{}", id, ex); }
+        removeFile(file.filePath());
     }
 
-    public Download download(UUID id, String kind, boolean admin) {
-        var file = (admin ? repository.find(id.toString()) : repository.findPublished(id.toString()))
-                .filter(entry -> entry.kind().equals(kind)).orElseThrow(AttachmentApplicationService::notFound);
-        return new Download(file, storage.find(id).orElseThrow(AttachmentApplicationService::notFound));
+    private void removeFile(String filePath) {
+        try { storage.remove(filePath); }
+        catch (UncheckedIOException ex) { log.warn("附件磁盘文件清理失败：{}", filePath, ex); }
+    }
+
+    public Download download(String filename, boolean admin) {
+        if (!AttachmentPaths.isFile(filename)) throw notFound();
+        var file = (admin ? repository.findByFilename(filename) : repository.findPublicByFilename(filename))
+                .orElseThrow(AttachmentApplicationService::notFound);
+        return new Download(file, storage.find(file.filePath()).orElseThrow(AttachmentApplicationService::notFound));
     }
 
     private static String validateName(String input) {
@@ -89,10 +110,12 @@ public class AttachmentApplicationService {
     private static DomainException notFound() { return DomainException.notFound("附件不存在"); }
 
     public record Download(Attachment attachment, Path path) {}
-    public record AttachmentView(String id, String name, String mediaType, String kind, String url, long size, LocalDateTime createdAt) {
+    public record AttachmentView(String id, String name, String mediaType, String kind, String url, String filename,
+                                 long size, LocalDateTime createdAt, boolean avatar) {
         static AttachmentView of(Attachment file) {
             return new AttachmentView(file.id(), file.name(), file.mediaType(), file.kind(),
-                    Attachment.URL_PREFIX + file.id() + '/' + file.kind(), file.size(), file.createdAt());
+                    AttachmentPaths.PUBLIC + file.filename(), file.filename(), file.size(), file.createdAt(),
+                    file.filePath().startsWith(AttachmentPaths.AVATAR_STORAGE_PREFIX));
         }
     }
 }

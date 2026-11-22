@@ -33,6 +33,7 @@ public class SpaWebConfig implements WebMvcConfigurer {
 
     private static final List<String> BACKEND_PREFIXES = List.of(
             "api",
+            "media",
             "error",
             "actuator",
             "doc.html",

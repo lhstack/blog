@@ -1,10 +1,12 @@
 package com.blog.application.setting;
 
+import com.blog.application.attachment.AttachmentApplicationService.Download;
+import com.blog.domain.attachment.AttachmentPaths;
 import com.blog.domain.common.DomainException;
 import com.blog.domain.setting.SiteAvatarRepository;
-import com.blog.domain.setting.SiteAvatarRepository.AvatarImage;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.imageio.ImageIO;
 import javax.imageio.stream.MemoryCacheImageInputStream;
@@ -12,20 +14,21 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Locale;
-import java.util.UUID;
 
 @Service
 public class SiteAvatarApplicationService {
     public static final int MAX_SIZE = 5 * 1024 * 1024;
     public static final int URL_LIMIT = 2048;
     private static final int MAX_PIXELS = 16_000_000;
-    private static final String IMAGE_PATH = "/api/public/site/avatar/";
 
     private final SiteAvatarRepository repository;
+    private final AvatarFiles avatarFiles;
     private final String defaultAvatar;
 
-    public SiteAvatarApplicationService(SiteAvatarRepository repository, @Value("${blog.site.avatar}") String defaultAvatar) {
+    public SiteAvatarApplicationService(SiteAvatarRepository repository, AvatarFiles avatarFiles,
+                                        @Value("${blog.site.avatar}") String defaultAvatar) {
         this.repository = repository;
+        this.avatarFiles = avatarFiles;
         this.defaultAvatar = defaultAvatar;
     }
 
@@ -39,22 +42,20 @@ public class SiteAvatarApplicationService {
             throw DomainException.invalid("请输入有效的 HTTP(S) 图片 URL");
         }
         String location = url.isEmpty() ? null : url;
-        repository.save(location, new AvatarImage(null, null));
+        repository.save(location);
         return toView(location);
     }
 
-    public AvatarView upload(byte[] content) {
-        String location = IMAGE_PATH + UUID.randomUUID();
-        repository.save(location, validateImage(content));
+    @Transactional
+    public AvatarView upload(String filename, byte[] content) {
+        String location = AttachmentPaths.SITE_AVATAR + avatarFiles.upload(filename, content);
+        repository.save(location);
         return toView(location);
     }
 
-    public AvatarImage image(UUID id) {
-        AvatarImage image = repository.findImage(IMAGE_PATH + id);
-        if (image == null) {
-            throw DomainException.notFound("头像文件不存在");
-        }
-        return image;
+    @Transactional(readOnly = true)
+    public Download image(String filename) {
+        return avatarFiles.image(filename, (AttachmentPaths.SITE_AVATAR + filename).equals(repository.location()));
     }
 
     private AvatarView toView(String location) {
@@ -72,25 +73,19 @@ public class SiteAvatarApplicationService {
         }
     }
 
-    public static AvatarImage validateImage(byte[] content) {
+    static void validateImage(byte[] content) {
         if (content.length == 0 || content.length > MAX_SIZE) {
             throw DomainException.invalid("请选择不超过 5 MB 的头像图片");
         }
-        return new AvatarImage(readImageType(content), content);
-    }
-
-    private static String readImageType(byte[] content) {
         try (var input = new MemoryCacheImageInputStream(new ByteArrayInputStream(content))) {
             var readers = ImageIO.getImageReaders(input);
             if (!readers.hasNext()) throw invalidImage();
             var reader = readers.next();
             try {
-                String type = switch (reader.getFormatName().toLowerCase(Locale.ROOT)) {
-                    case "jpeg", "jpg" -> "image/jpeg";
-                    case "png" -> "image/png";
-                    case "webp" -> "image/webp";
+                switch (reader.getFormatName().toLowerCase(Locale.ROOT)) {
+                    case "jpeg", "jpg", "png", "webp" -> { }
                     default -> throw invalidImage();
-                };
+                }
                 reader.setInput(input, true, true);
                 int width = reader.getWidth(0);
                 int height = reader.getHeight(0);
@@ -98,7 +93,6 @@ public class SiteAvatarApplicationService {
                     throw DomainException.invalid("头像不能超过 1600 万像素");
                 }
                 if (reader.read(0) == null) throw invalidImage();
-                return type;
             } finally {
                 reader.dispose();
             }

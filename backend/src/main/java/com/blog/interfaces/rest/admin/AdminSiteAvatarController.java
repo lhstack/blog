@@ -43,7 +43,7 @@ public class AdminSiteAvatarController {
         if (file.getSize() > SiteAvatarApplicationService.MAX_SIZE) {
             throw DomainException.invalid("头像不能超过 5 MB");
         }
-        return service.upload(file.getBytes());
+        return service.upload(file.getOriginalFilename(), file.getBytes());
     }
 
     record AvatarRequest(@Size(max = SiteAvatarApplicationService.URL_LIMIT) String url) {}

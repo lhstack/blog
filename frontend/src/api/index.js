@@ -1,4 +1,5 @@
 import http from './http'
+import { attachmentFilename } from '@/utils/attachments'
 
 function uploadFile(path, file) {
   const form = new FormData()
@@ -36,7 +37,11 @@ export const adminApi = {
   uploadAttachment: (file) => uploadFile('/admin/attachments', file),
   renameAttachment: (id, name) => http.put(`/admin/attachments/${id}`, { name }),
   deleteAttachment: (id) => http.delete(`/admin/attachments/${id}`),
-  attachmentContent: (url, signal) => http.get(url.replace('/api/public/', '/admin/'), { responseType: 'blob', signal }),
+  attachmentContent: (url, signal) => {
+    const filename = attachmentFilename(url)
+    if (!filename) return Promise.reject(new Error('附件路径无效'))
+    return http.get(`/admin/attachments/files/${filename}`, { responseType: 'blob', signal })
+  },
 
   articles: (params, config) => http.get('/admin/articles', { ...config, params }),
   article: (id, config) => http.get(`/admin/articles/${id}`, config),

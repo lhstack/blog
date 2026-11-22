@@ -7,9 +7,10 @@ public interface AttachmentRepository {
     List<Attachment> list(AttachmentQuery query, int limit, long offset);
     long count(AttachmentQuery query);
     Optional<Attachment> find(String id);
-    Optional<Attachment> findPublished(String id);
+    Optional<Attachment> findByFilename(String filename);
+    Optional<Attachment> findPublicByFilename(String filename);
     void insert(Attachment attachment);
     boolean rename(String id, String name);
-    boolean deleteIfUnused(String id);
+    boolean deleteIfUnused(String id, String filename);
     void replaceArticleReferences(Long articleId, String cover, String content);
 }

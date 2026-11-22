@@ -107,7 +107,7 @@ onMounted(() => load())
 <template>
   <section class="attachment-library" aria-label="附件库">
     <div class="library-header">
-      <p class="muted">{{ picker ? '选择图片作为文章封面。' : '附件在被已发布文章引用后才对读者开放。' }}</p>
+      <p class="muted">{{ picker ? '选择图片作为文章封面。' : '新上传的普通附件可通过链接公开访问，包括草稿里引用的附件。头像有独立的访问规则。' }}</p>
       <AdminFilePicker :label="picker ? '选择图片' : '上传附件'" hint="单个文件不超过 20 MB"
         :accept="picker ? 'image/*' : undefined" :busy="uploading" @select="upload" />
     </div>
@@ -130,10 +130,10 @@ onMounted(() => load())
           <div class="file-actions">
             <a-button v-if="file.kind !== 'download'" type="link" size="small" @click="preview = file">预览</a-button>
             <a-button v-else-if="!picker" type="link" size="small" @click="download(file)">下载</a-button>
-            <a-button v-if="picker" size="small" type="link" :disabled="file.kind !== 'image'" @click="emit('select', file)">用作封面</a-button>
+            <a-button v-if="picker" size="small" type="link" :disabled="file.kind !== 'image' || file.avatar" @click="emit('select', file)">用作封面</a-button>
             <template v-else>
-              <a-button type="link" size="small" @click="copy(file, false)">复制链接</a-button>
-              <a-button type="link" size="small" @click="copy(file, true)">复制 Markdown</a-button>
+              <a-button v-if="!file.avatar" type="link" size="small" @click="copy(file, false)">复制链接</a-button>
+              <a-button v-if="!file.avatar" type="link" size="small" @click="copy(file, true)">复制 Markdown</a-button>
               <a-button type="link" size="small" @click="rename(file)">改名</a-button>
               <a-button type="link" size="small" danger @click="remove(file)">删除</a-button>
             </template>

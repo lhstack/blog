@@ -1,6 +1,7 @@
 package com.blog.infrastructure.persistence.attachment;
 
 import com.blog.domain.attachment.Attachment;
+import com.blog.domain.attachment.AttachmentPaths;
 import com.blog.domain.attachment.AttachmentQuery;
 import com.blog.domain.attachment.AttachmentRepository;
 import com.blog.domain.common.DomainException;
@@ -14,8 +15,8 @@ import java.util.regex.Pattern;
 
 @Repository
 public class AttachmentRepositoryImpl implements AttachmentRepository {
-    private static final Pattern REFERENCE = Pattern.compile(Pattern.quote(Attachment.URL_PREFIX)
-            + "([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/(image|audio|video|download)(?![\\w/-])");
+    private static final Pattern REFERENCE = Pattern.compile(Pattern.quote(AttachmentPaths.PUBLIC)
+            + "(" + AttachmentPaths.FILE_PATTERN + ")(?![\\w/.-])");
     private final AttachmentMapper mapper;
 
     public AttachmentRepositoryImpl(AttachmentMapper mapper) { this.mapper = mapper; }
@@ -36,22 +37,31 @@ public class AttachmentRepositoryImpl implements AttachmentRepository {
         return query.dates().to() == null ? null : query.dates().until().toString();
     }
     public Optional<Attachment> find(String id) { return Optional.ofNullable(mapper.find(id)); }
-    public Optional<Attachment> findPublished(String id) { return Optional.ofNullable(mapper.findPublished(id)); }
+    public Optional<Attachment> findByFilename(String filename) {
+        return Optional.ofNullable(mapper.findByFilename(AttachmentPaths.PUBLIC_STORAGE_PREFIX + filename,
+                AttachmentPaths.AVATAR_STORAGE_PREFIX + filename, AttachmentPaths.STORAGE_PREFIX + filename));
+    }
+    public Optional<Attachment> findPublicByFilename(String filename) {
+        return Optional.ofNullable(mapper.findPublicByFilename(AttachmentPaths.PUBLIC_STORAGE_PREFIX + filename,
+                AttachmentPaths.STORAGE_PREFIX + filename, AttachmentPaths.SITE_AVATAR + filename, AttachmentPaths.PROFILE_AVATAR + filename));
+    }
     public void insert(Attachment attachment) { mapper.insert(attachment); }
     public boolean rename(String id, String name) { return mapper.rename(id, name) == 1; }
-    public boolean deleteIfUnused(String id) { return mapper.deleteIfUnused(id) == 1; }
+    public boolean deleteIfUnused(String id, String filename) {
+        return mapper.deleteIfUnused(id, AttachmentPaths.SITE_AVATAR + filename, AttachmentPaths.PROFILE_AVATAR + filename) == 1;
+    }
 
     public void replaceArticleReferences(Long articleId, String cover, String content) {
         mapper.clearReferences(articleId);
         var seen = new HashSet<String>();
         var references = REFERENCE.matcher((cover == null ? "" : cover) + '\n' + content);
         while (references.find()) {
-            String id = references.group(1);
-            String kind = references.group(2);
-            if (!seen.add(id + "/" + kind)) continue;
-            Attachment attachment = find(id).orElseThrow(() -> DomainException.invalid("正文或封面引用了不存在的附件"));
-            if (!kind.equals(attachment.kind())) throw DomainException.invalid("附件的引用类型不正确");
-            mapper.addReference(articleId, id);
+            String filename = references.group(1);
+            if (!seen.add(filename)) continue;
+            Attachment attachment = findByFilename(filename)
+                    .filter(file -> !file.filePath().startsWith(AttachmentPaths.AVATAR_STORAGE_PREFIX))
+                    .orElseThrow(() -> DomainException.invalid("正文或封面引用了不存在的普通附件"));
+            mapper.addReference(articleId, attachment.id());
         }
     }
 }

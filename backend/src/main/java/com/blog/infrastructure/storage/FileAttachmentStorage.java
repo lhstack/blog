@@ -1,5 +1,6 @@
 package com.blog.infrastructure.storage;
 
+import com.blog.domain.attachment.AttachmentPaths;
 import com.blog.domain.attachment.AttachmentStorage;
 import com.blog.domain.common.DomainException;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,14 +19,16 @@ import java.util.UUID;
 @Component
 public class FileAttachmentStorage implements AttachmentStorage {
     private static final long MAX_BYTES = 20L * 1024 * 1024;
-    private final Path directory;
+    private final Path dataDirectory;
 
     public FileAttachmentStorage(@Value("${blog.data-dir}") String dataDir) {
-        directory = Path.of(dataDir).toAbsolutePath().normalize().resolve("attachments");
+        dataDirectory = Path.of(dataDir).toAbsolutePath().normalize();
     }
 
     @Override
-    public String store(UUID id, InputStream input) {
+    public StoredFile store(String name, InputStream input, boolean avatar) {
+        String prefix = avatar ? AttachmentPaths.AVATAR_STORAGE_PREFIX : AttachmentPaths.PUBLIC_STORAGE_PREFIX;
+        Path directory = dataDirectory.resolve(prefix);
         try {
             Files.createDirectories(directory);
             Path temp = Files.createTempFile(directory, "upload-", ".tmp");
@@ -34,8 +37,10 @@ public class FileAttachmentStorage implements AttachmentStorage {
                 if (size == 0 || size > MAX_BYTES) throw DomainException.invalid("请选择不超过 20 MB 的文件");
                 String type;
                 try (var head = Files.newInputStream(temp)) { type = mediaType(head.readNBytes(32)); }
-                Files.move(temp, path(id));
-                return type;
+                String filename = AttachmentPaths.filename(name, "%016x".formatted(UUID.randomUUID().getMostSignificantBits()), type);
+                String filePath = prefix + filename;
+                Files.move(temp, dataDirectory.resolve(filePath));
+                return new StoredFile(filePath, type);
             } finally {
                 Files.deleteIfExists(temp);
             }
@@ -45,18 +50,18 @@ public class FileAttachmentStorage implements AttachmentStorage {
     }
 
     @Override
-    public Optional<Path> find(UUID id) {
-        Path path = path(id);
+    public Optional<Path> find(String filePath) {
+        if (!AttachmentPaths.isStoragePath(filePath)) return Optional.empty();
+        Path path = dataDirectory.resolve(filePath);
         return Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS) ? Optional.of(path) : Optional.empty();
     }
 
     @Override
-    public void remove(UUID id) {
-        try { Files.deleteIfExists(path(id)); }
+    public void remove(String filePath) {
+        if (!AttachmentPaths.isStoragePath(filePath)) throw new IllegalArgumentException("Invalid attachment path");
+        try { Files.deleteIfExists(dataDirectory.resolve(filePath)); }
         catch (IOException ex) { throw new UncheckedIOException("清理附件失败", ex); }
     }
-
-    private Path path(UUID id) { return directory.resolve(id.toString()); }
 
     private static String mediaType(byte[] head) {
         if (starts(head, 0, 0x89, 'P', 'N', 'G', 13, 10, 26, 10)) return "image/png";

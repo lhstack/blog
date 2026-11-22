@@ -15,9 +15,13 @@ public final class AttachmentResponse {
     private AttachmentResponse() {}
 
     public static ResponseEntity<Resource> of(Download download) {
+        return of(download, CacheControl.noStore());
+    }
+
+    public static ResponseEntity<Resource> of(Download download, CacheControl cacheControl) {
         var file = download.attachment();
         var disposition = file.kind().equals("download") ? ContentDisposition.attachment() : ContentDisposition.inline();
-        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+        return ResponseEntity.ok().cacheControl(cacheControl)
                 .contentType(MediaType.parseMediaType(file.mediaType()))
                 .header(HttpHeaders.CONTENT_DISPOSITION, disposition.filename(file.name(), StandardCharsets.UTF_8).build().toString())
                 .header("X-Content-Type-Options", "nosniff")
