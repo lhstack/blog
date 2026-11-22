@@ -1,0 +1,14 @@
+FROM alpine/java:21-jre
+LABEL author="lhstack@foxmail.com"
+ENV TZ="Asia/Shanghai" LANG="C.UTF-8"
+RUN apk update \
+	&& apk add --no-cache tzdata ttf-dejavu fontconfig tini \
+	&& ln -snf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && echo $TZ > /etc/timezone \
+    && rm -rf /var/cache/apk/* \
+    && rm -rf /root/.cache \
+    && rm -rf /tmp/*
+ENTRYPOINT ["tini"]
+RUN mkdir /app
+WORKDIR /app
+CMD ["sh","-c","java $JVM_OPTS -jar app.jar"]

@@ -1,0 +1,41 @@
+name: blog-jar
+
+services:
+  blog:
+    image: java:21-jre
+    container_name: blog
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/api/public/site"]
+      interval: 10s
+      timeout: 3s
+      start_period: 30s
+      retries: 3
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      BLOG_ADMIN_USERNAME: lhstack
+      BLOG_ADMIN_PASSWORD: 密码
+      BLOG_TYPEWRITER_ZONE: Asia/Shanghai
+      BLOG_SITE_URL: http://lhstack.top
+      JVM_OPTS: "-Xms1536m -Xmx1536m -XX:MetaspaceSize=256m -XX:MaxMetaspaceSize=256m -Duser.timezone=Asia/Shanghai"
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./app.jar:/app/app.jar
+    logging:
+      options:
+        max-file: 1
+        max-size: 16k
+    mem_limit: 2G
+    cpus: 4
+    networks:
+      net:
+        ipv4_address: 192.168.1.188
+networks:
+  net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.1.0/24
+    name: net

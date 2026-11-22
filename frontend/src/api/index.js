@@ -21,7 +21,7 @@ export const publicApi = {
 }
 
 export const authApi = {
-  login: (payload) => http.post('/auth/login', payload),
+  login: (payload) => http.post('/auth/login', payload, { silent: true }),
   profile: () => http.get('/admin/profile'),
   updateProfile: (payload) => http.put('/admin/profile', payload),
   uploadAvatar: (file) => uploadFile('/admin/profile/avatar', file),

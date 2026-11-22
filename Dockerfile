@@ -8,7 +8,7 @@ COPY frontend/src/ src/
 COPY frontend/public/ public/
 RUN npm run build
 
-FROM --platform=$BUILDPLATFORM maven:3.9-eclipse-temurin-25 AS maven
+FROM --platform=$BUILDPLATFORM maven:3.9-eclipse-temurin-21 AS maven
 
 FROM maven AS jar-builder
 WORKDIR /src
@@ -18,7 +18,7 @@ COPY --from=frontend /src/frontend/dist frontend/dist
 RUN --mount=type=cache,target=/root/.m2 \
     mvn -B -f backend/pom.xml package && cp backend/target/blog-backend-*.jar /tmp/blog.jar
 
-FROM eclipse-temurin:25-jre-noble AS jar-runtime
+FROM eclipse-temurin:21-jre-noble AS jar-runtime
 RUN apt-get update && apt-get install -y --no-install-recommends wget && \
     rm -rf /var/lib/apt/lists/* && \
     groupadd -g 10001 blog && useradd -u 10001 -g blog -M blog && \

@@ -8,21 +8,39 @@ const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 
-const form = reactive({ username: 'admin', password: 'admin123' })
+const form = reactive({ username: '', password: '' })
 const submitting = ref(false)
+const loginError = ref('')
 
 async function onSubmit() {
+  if (submitting.value) return
+
   submitting.value = true
+  loginError.value = ''
   try {
     await auth.login({ username: form.username, password: form.password })
-    message.success('登录成功')
-    const redirect = route.query.redirect
-    router.replace(typeof redirect === 'string' ? redirect : '/admin/dashboard')
-  } catch {
-    // 错误提示由 axios 拦截器统一处理
+  } catch (error) {
+    loginError.value = getLoginError(error)
+    return
   } finally {
     submitting.value = false
   }
+
+  message.success('登录成功')
+  const redirect = route.query.redirect
+  router.replace(typeof redirect === 'string' ? redirect : '/admin/dashboard')
+}
+
+function getLoginError(error) {
+  const response = error.response
+  if (response?.status >= 500) return '服务器异常，请稍后重试'
+  if (error.code === 'ERR_NETWORK') return '无法连接到服务器，请检查网络后重试'
+  if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') return '登录请求超时，请重试'
+
+  const detail = response?.data?.message
+  if (typeof detail === 'string' && detail.trim()) return detail
+  if (response?.status === 401) return '用户名或密码不正确'
+  return '登录失败，请稍后重试'
 }
 </script>
 
@@ -49,6 +67,9 @@ async function onSubmit() {
             autocomplete="current-password"
           />
         </a-form-item>
+        <a-form-item v-if="loginError">
+          <a-alert :message="loginError" type="error" show-icon role="alert" />
+        </a-form-item>
         <a-button
           v-magnetic
           type="primary"
@@ -64,7 +85,6 @@ async function onSubmit() {
 
       <div class="login-foot">
         <RouterLink to="/">← 返回站点首页</RouterLink>
-        <span class="hint">默认账号 admin / admin123</span>
       </div>
     </div>
   </div>
@@ -132,11 +152,5 @@ async function onSubmit() {
 
 .login-foot a:hover {
   color: var(--brand-1);
-}
-
-.hint {
-  padding: 2px 9px;
-  border-radius: 999px;
-  background: rgba(148, 163, 184, 0.14);
 }
 </style>

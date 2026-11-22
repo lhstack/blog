@@ -65,14 +65,14 @@
 
 | 用途 | 选型 |
 | --- | --- |
-| 后端构建 | **JDK 25**、Maven 3.9（以 [`backend/pom.xml`](backend/pom.xml) 为准） |
+| 后端构建 | **JDK 21**、Maven 3.9（以 [`backend/pom.xml`](backend/pom.xml) 为准） |
 | 后端 | Spring Boot 3.5.16、Spring MVC、虚拟线程、Reactor |
 | 持久化与认证 | SQLite（WAL）、MyBatis-Plus 3.5.18、Sa-Token 1.46.0 |
 | 前端构建 | 建议 **Node.js 22.12+** 与 npm，使用 `package-lock.json` 锁定依赖 |
 | 前端 | Vue 3.5、Vite 6、Ant Design Vue 4、Vue Router、Pinia |
 | 接口文档 | springdoc-openapi 2.8.13、Knife4j UI 4.5.0（仅静态资源） |
 
-如本机有多个 JDK，先运行 `mvn -v`，确认 Maven 使用的是 JDK 25。
+如本机有多个 JDK，打包 JAR 前先运行 `mvn -v`，确认 Maven 使用的是 JDK 21。
 
 ## 本地开发
 
@@ -116,7 +116,7 @@ cp .env.example .env
 | 版本 | 启动命令 | 默认访问地址 |
 | --- | --- | --- |
 | GraalVM Native Image（Alpine） | `docker compose -f docker-compose.native.yml up -d --build --wait` | <http://127.0.0.1:8081/> |
-| Spring Boot JAR（Java 25） | `docker compose -f docker-compose.jar.yml up -d --build --wait` | <http://127.0.0.1:8082/> |
+| Spring Boot JAR（Java 21） | `docker compose -f docker-compose.jar.yml up -d --build --wait` | <http://127.0.0.1:8082/> |
 
 两版都内置前端，后台入口为 `/admin/login`。默认只绑定回环地址，分别使用独立的 SQLite、附件和日志卷；两版的文章和账号修改不会同步。可在 `.env` 中调整端口和监听地址；使用反向代理时，将对应的 `BLOG_NATIVE_SITE_URL` 或 `BLOG_JAR_SITE_URL` 设为访客使用的公网地址，保证 RSS 链接正确。
 

@@ -2,26 +2,32 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 const props = defineProps({ tracks: { type: Array, required: true } })
+const storageKey = 'blog-music-player-v1'
+const saved = readPlayerState()
+const savedIndex = props.tracks.findIndex(track => track.id === saved?.trackId)
 const audioRef = ref(null)
-const currentIndex = ref(0)
+const currentIndex = ref(savedIndex >= 0 ? savedIndex : 0)
 const playing = ref(false)
 const status = ref('')
-const duration = ref(0)
-const elapsed = ref(0)
-const volume = ref(0.6)
-const expanded = ref(false)
+const duration = ref(savedIndex >= 0 ? nonNegativeNumber(saved.duration) : 0)
+const elapsed = ref(savedIndex >= 0 ? nonNegativeNumber(saved.position) : 0)
+const volume = ref(Number.isFinite(saved?.volume) ? Math.min(1, Math.max(0, saved.volume)) : 0.6)
+const expanded = ref(saved?.expanded === true)
 const volumeOpen = ref(false)
-const playlistOpen = ref(false)
+const playlistOpen = ref(saved?.playlistOpen === true)
 const volumeControl = ref(null)
 const volumeButton = ref(null)
-const shuffled = ref(false)
+const shuffled = ref(saved?.shuffled === true)
 const played = []
 const modeLabel = computed(() => shuffled.value ? '随机播放' : '顺序播放')
 const failedTracks = new Set()
-let wantsPlayback = true
+let wantsPlayback = false
 let playToken = 0
+let pendingPosition = elapsed.value
+let lastSavedAt = 0
 
 const currentTrack = computed(() => props.tracks[currentIndex.value])
+let lastSavedSnapshot = playerSnapshot()
 const buttonLabel = computed(() => {
   if (status.value === 'unavailable') return '重试背景音乐'
   return playing.value ? '暂停背景音乐' : '播放背景音乐'
@@ -29,11 +35,53 @@ const buttonLabel = computed(() => {
 
 onMounted(() => {
   audioRef.value.volume = volume.value
-  loadCurrent()
   document.addEventListener('pointerdown', dismissOutsideVolume, true)
   document.addEventListener('visibilitychange', onVisibilityChange)
   window.addEventListener('blur', dismissVolume)
+  window.addEventListener('pagehide', savePlaybackPosition)
 })
+
+function readPlayerState() {
+  try {
+    return JSON.parse(window.localStorage.getItem(storageKey))
+  } catch {
+    // 缓存无效或不可访问时，播放器仍可使用。
+    return null
+  }
+}
+
+function nonNegativeNumber(value) {
+  return Number.isFinite(value) ? Math.max(0, value) : 0
+}
+
+function playerSnapshot() {
+  return JSON.stringify({
+    trackId: currentTrack.value?.id,
+    position: elapsed.value,
+    duration: duration.value,
+    volume: volume.value,
+    shuffled: shuffled.value,
+    expanded: expanded.value,
+    playlistOpen: playlistOpen.value
+  })
+}
+
+function savePlayerState() {
+  const snapshot = playerSnapshot()
+  if (snapshot === lastSavedSnapshot) return
+  lastSavedAt = Date.now()
+  try {
+    window.localStorage.setItem(storageKey, snapshot)
+    lastSavedSnapshot = snapshot
+  } catch {
+    // 浏览器禁用存储或配额耗尽，不打断播放。
+  }
+}
+
+function savePlaybackPosition() {
+  syncProgress()
+  savePlayerState()
+}
 
 function selectTrack(index, play = false) {
   if (play) wantsPlayback = true
@@ -53,6 +101,7 @@ function selectTrack(index, play = false) {
 function toggleMode() {
   shuffled.value = !shuffled.value
   played.length = 0
+  savePlayerState()
 }
 
 function stepTrack(step) {
@@ -73,14 +122,37 @@ function stepTrack(step) {
 
 function syncProgress() {
   const audio = audioRef.value
-  duration.value = Number.isFinite(audio.duration) ? audio.duration : 0
+  if (!audio || audio.readyState < HTMLMediaElement.HAVE_METADATA || pendingPosition !== null) return
+  duration.value = nonNegativeNumber(audio.duration)
   elapsed.value = audio.currentTime
+}
+
+function onTimeUpdate() {
+  syncProgress()
+  if (Date.now() - lastSavedAt >= 3000) savePlayerState()
+}
+
+function onLoadedMetadata() {
+  const audio = audioRef.value
+  if (pendingPosition > 0) {
+    audio.currentTime = Math.min(pendingPosition, nonNegativeNumber(audio.duration))
+  }
+  pendingPosition = null
+  savePlaybackPosition()
 }
 
 function seek(event) {
   if (!duration.value) return
-  audioRef.value.currentTime = Number(event.target.value)
-  syncProgress()
+  const position = Number(event.target.value)
+  const audio = audioRef.value
+  if (pendingPosition !== null) {
+    pendingPosition = position
+    elapsed.value = position
+  } else {
+    audio.currentTime = position
+    syncProgress()
+  }
+  savePlayerState()
 }
 
 function setVolume(event) {
@@ -90,11 +162,18 @@ function setVolume(event) {
   // 某些移动浏览器仅允许通过系统按键调整音量。
   volume.value = audio.volume
   event.target.value = audio.volume
+  savePlayerState()
 }
 
 function toggleExpanded() {
   expanded.value = !expanded.value
   if (!expanded.value) dismissVolume()
+  savePlayerState()
+}
+
+function togglePlaylist() {
+  playlistOpen.value = !playlistOpen.value
+  savePlayerState()
 }
 
 function dismissVolume() {
@@ -106,7 +185,9 @@ function dismissOutsideVolume(event) {
 }
 
 function onVisibilityChange() {
-  if (document.hidden) dismissVolume()
+  if (!document.hidden) return
+  dismissVolume()
+  savePlaybackPosition()
 }
 
 function onEscape() {
@@ -122,22 +203,26 @@ function formatTime(seconds) {
 
 function loadCurrent() {
   const audio = audioRef.value
-  const track = currentTrack.value
-  if (!audio || !track) return
   ++playToken
+  pendingPosition = 0
   elapsed.value = 0
   duration.value = 0
   playing.value = false
   status.value = ''
-  audio.src = `/api/public/music/${track.id}`
-  audio.load()
+  if (audio.hasAttribute('src')) {
+    audio.removeAttribute('src')
+    audio.load()
+  }
+  savePlayerState()
   if (wantsPlayback) requestPlay()
 }
 
 async function requestPlay() {
+  const audio = audioRef.value
+  if (!audio.hasAttribute('src')) audio.src = `/api/public/music/${currentTrack.value.id}`
   const token = ++playToken
   try {
-    await audioRef.value.play()
+    await audio.play()
   } catch (error) {
     if (token !== playToken) return
     if (error.name === 'NotAllowedError') {
@@ -169,6 +254,11 @@ function onPlaying() {
   status.value = ''
 }
 
+function onPause() {
+  playing.value = false
+  savePlaybackPosition()
+}
+
 function onEnded() {
   if (props.tracks.length === 1) loadCurrent()
   else stepTrack(1)
@@ -184,6 +274,7 @@ function togglePlayback() {
     ++playToken
     wantsPlayback = false
     audio.pause()
+    savePlaybackPosition()
     return
   }
   wantsPlayback = true
@@ -200,6 +291,8 @@ onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', dismissOutsideVolume, true)
   document.removeEventListener('visibilitychange', onVisibilityChange)
   window.removeEventListener('blur', dismissVolume)
+  window.removeEventListener('pagehide', savePlaybackPosition)
+  savePlaybackPosition()
   ++playToken
   const audio = audioRef.value
   audio.pause()
@@ -217,8 +310,8 @@ onBeforeUnmount(() => {
       </svg>
     </button>
     <div v-show="expanded" id="background-music-player" class="music-player" role="region" aria-label="背景音乐" @keydown.esc="onEscape">
-    <audio ref="audioRef" preload="metadata" @playing="onPlaying" @pause="playing = false" @ended="onEnded" @error="onError"
-      @timeupdate="syncProgress" @durationchange="syncProgress" @loadedmetadata="syncProgress" />
+    <audio ref="audioRef" preload="none" @playing="onPlaying" @pause="onPause" @ended="onEnded" @error="onError"
+      @timeupdate="onTimeUpdate" @durationchange="syncProgress" @loadedmetadata="onLoadedMetadata" />
 
     <header class="music-heading">
       <p class="music-name" :title="currentTrack.name">{{ currentTrack.name }}</p>
@@ -273,7 +366,7 @@ onBeforeUnmount(() => {
       </div>
       <button class="icon-button playlist-toggle" type="button" :class="{ 'is-active': playlistOpen }"
         :aria-expanded="playlistOpen" aria-controls="background-music-playlist" aria-label="播放列表" title="播放列表"
-        @click="playlistOpen = !playlistOpen">
+        @click="togglePlaylist">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M4 5h16v2H4zm0 6h16v2H4zm0 6h9v2H4zm12-2 5 3-5 3z" />
         </svg>
