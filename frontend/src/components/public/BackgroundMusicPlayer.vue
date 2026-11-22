@@ -21,7 +21,8 @@ const shuffled = ref(saved?.shuffled === true)
 const played = []
 const modeLabel = computed(() => shuffled.value ? '随机播放' : '顺序播放')
 const failedTracks = new Set()
-let wantsPlayback = false
+// 只恢复已明确记录的播放意图；旧版缓存没有此字段。
+let wantsPlayback = saved?.wantsPlayback === true
 let playToken = 0
 let pendingPosition = elapsed.value
 let lastSavedAt = 0
@@ -30,6 +31,7 @@ const currentTrack = computed(() => props.tracks[currentIndex.value])
 let lastSavedSnapshot = playerSnapshot()
 const buttonLabel = computed(() => {
   if (status.value === 'unavailable') return '重试背景音乐'
+  if (status.value === 'autoplay-blocked') return '点击继续播放背景音乐'
   return playing.value ? '暂停背景音乐' : '播放背景音乐'
 })
 
@@ -39,6 +41,7 @@ onMounted(() => {
   document.addEventListener('visibilitychange', onVisibilityChange)
   window.addEventListener('blur', dismissVolume)
   window.addEventListener('pagehide', savePlaybackPosition)
+  if (wantsPlayback) requestPlay()
 })
 
 function readPlayerState() {
@@ -59,6 +62,7 @@ function playerSnapshot() {
     trackId: currentTrack.value?.id,
     position: elapsed.value,
     duration: duration.value,
+    wantsPlayback,
     volume: volume.value,
     shuffled: shuffled.value,
     expanded: expanded.value,
@@ -226,7 +230,8 @@ async function requestPlay() {
   } catch (error) {
     if (token !== playToken) return
     if (error.name === 'NotAllowedError') {
-      wantsPlayback = false
+      // 浏览器拦截不是用户主动暂停，保留进度和下次续播意图。
+      status.value = 'autoplay-blocked'
     } else if (error.name !== 'AbortError') {
       skipFailedTrack()
     }
@@ -252,6 +257,7 @@ function onPlaying() {
   playing.value = true
   failedTracks.clear()
   status.value = ''
+  savePlayerState()
 }
 
 function onPause() {
@@ -316,6 +322,7 @@ onBeforeUnmount(() => {
     <header class="music-heading">
       <p class="music-name" :title="currentTrack.name">{{ currentTrack.name }}</p>
       <p v-if="status === 'unavailable'" class="music-hint" role="status">音乐暂不可播放</p>
+      <p v-else-if="status === 'autoplay-blocked'" class="music-hint" role="status">浏览器阻止了自动播放，请点击播放继续</p>
     </header>
 
     <div class="music-progress">
