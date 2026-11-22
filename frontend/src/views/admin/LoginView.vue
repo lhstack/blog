@@ -8,17 +8,65 @@ const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 
-const form = reactive({ username: '', password: '' })
+const credentialsKey = 'blog-remembered-login-v1'
+const credentialsTtlMs = 7 * 24 * 60 * 60 * 1000
+const remembered = readRememberedCredentials()
+const form = reactive({ username: remembered?.username ?? '', password: remembered?.password ?? '' })
+const rememberCredentials = ref(remembered !== null)
 const submitting = ref(false)
 const loginError = ref('')
+
+function readRememberedCredentials() {
+  try {
+    const raw = window.localStorage.getItem(credentialsKey)
+    if (!raw) return null
+    const { username, password, expiresAt } = JSON.parse(raw) ?? {}
+    if (typeof username === 'string' && username && typeof password === 'string' && password &&
+      Number.isFinite(expiresAt) && expiresAt > Date.now()) {
+      return { username, password }
+    }
+  } catch {
+    // 无法读取或解析时不回填。
+  }
+  clearRememberedCredentials()
+  return null
+}
+
+function clearRememberedCredentials() {
+  try {
+    window.localStorage.removeItem(credentialsKey)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function onRememberChange(event) {
+  rememberCredentials.value = event.target.checked
+  if (!rememberCredentials.value && !clearRememberedCredentials()) {
+    message.warning('无法清除已保存的登录凭证，请在浏览器中清除此站点的数据')
+  }
+}
+
+function saveRememberedCredentials(credentials) {
+  try {
+    window.localStorage.setItem(credentialsKey, JSON.stringify({
+      ...credentials,
+      expiresAt: Date.now() + credentialsTtlMs
+    }))
+  } catch {
+    message.warning('登录成功，但浏览器未能保存登录凭证')
+  }
+}
 
 async function onSubmit() {
   if (submitting.value) return
 
+  const credentials = { username: form.username, password: form.password }
   submitting.value = true
   loginError.value = ''
   try {
-    await auth.login({ username: form.username, password: form.password })
+    await auth.login(credentials)
   } catch (error) {
     loginError.value = getLoginError(error)
     return
@@ -26,6 +74,7 @@ async function onSubmit() {
     submitting.value = false
   }
 
+  if (rememberCredentials.value) saveRememberedCredentials(credentials)
   message.success('登录成功')
   const redirect = route.query.redirect
   router.replace(typeof redirect === 'string' ? redirect : '/admin/dashboard')
@@ -66,6 +115,12 @@ function getLoginError(error) {
             placeholder="请输入密码"
             autocomplete="current-password"
           />
+        </a-form-item>
+        <a-form-item>
+          <a-checkbox :checked="rememberCredentials" @change="onRememberChange">
+            记住用户名和密码（7 天）
+          </a-checkbox>
+          <div class="muted remember-hint">仅在私人设备上勾选。密码将保存在此浏览器中。</div>
         </a-form-item>
         <a-form-item v-if="loginError">
           <a-alert :message="loginError" type="error" show-icon role="alert" />
@@ -135,6 +190,11 @@ function getLoginError(error) {
 .login-brand p {
   margin: 0;
   font-size: 12.5px;
+}
+
+.remember-hint {
+  margin-top: 4px;
+  font-size: 12px;
 }
 
 .login-foot {
