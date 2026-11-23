@@ -13,6 +13,7 @@ services:
       retries: 3
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      BLOG_DATABASE_TYPE: sqlite
       BLOG_ADMIN_USERNAME: lhstack
       BLOG_ADMIN_PASSWORD: 密码
       BLOG_TYPEWRITER_ZONE: Asia/Shanghai

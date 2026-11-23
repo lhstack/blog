@@ -18,5 +18,9 @@ public interface SiteAvatarMapper extends SiteAvatarRepository {
             VALUES (1, #{location,jdbcType=VARCHAR})
             ON CONFLICT(id) DO UPDATE SET location = excluded.location
             """)
+    @Insert(value = """
+            INSERT INTO blog_site_avatar (id, location) VALUES (1, #{location,jdbcType=VARCHAR})
+            ON DUPLICATE KEY UPDATE location = #{location,jdbcType=VARCHAR}
+            """, databaseId = "mysql")
     void save(@Param("location") String location);
 }

@@ -9,14 +9,22 @@ import java.util.List;
 public interface AttachmentMapper {
     String FILTERS = """
             <where>
-                <if test="keyword != null">AND instr(lower(name), lower(#{keyword})) &gt; 0</if>
+                <if test="keyword != null">
+                    <choose>
+                        <when test="_databaseId == 'postgresql'">AND strpos(lower(name), lower(#{keyword})) &gt; 0</when>
+                        <otherwise>AND instr(lower(name), lower(#{keyword})) &gt; 0</otherwise>
+                    </choose>
+                </if>
                 <if test="from != null">AND created_at &gt;= #{from}</if>
                 <if test="until != null">AND created_at &lt; #{until}</if>
                 <choose>
                     <when test="kind == 'download'">
                         AND media_type NOT LIKE 'image/%' AND media_type NOT LIKE 'audio/%' AND media_type NOT LIKE 'video/%'
                     </when>
-                    <when test="kind != null">AND media_type LIKE (#{kind} || '/%')</when>
+                    <when test="kind != null">
+                        <bind name="kindPattern" value="kind + '/%'" />
+                        AND media_type LIKE #{kindPattern}
+                    </when>
                 </choose>
             </where>
             """;
@@ -75,6 +83,13 @@ public interface AttachmentMapper {
     @Delete("DELETE FROM blog_article_attachment WHERE article_id = #{articleId}")
     void clearReferences(@Param("articleId") Long articleId);
 
-    @Insert("INSERT OR IGNORE INTO blog_article_attachment (article_id, attachment_id) VALUES (#{articleId}, #{id})")
+    @Insert("""
+            INSERT INTO blog_article_attachment (article_id, attachment_id) VALUES (#{articleId}, #{id})
+            ON CONFLICT (article_id, attachment_id) DO NOTHING
+            """)
+    @Insert(value = """
+            INSERT INTO blog_article_attachment (article_id, attachment_id) VALUES (#{articleId}, #{id})
+            ON DUPLICATE KEY UPDATE article_id = article_id
+            """, databaseId = "mysql")
     void addReference(@Param("articleId") Long articleId, @Param("id") String id);
 }

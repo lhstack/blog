@@ -34,7 +34,7 @@ public class ArticlePo {
     private Long categoryId;
 
     private String status;
-    private Boolean pinned;
+    private Integer pinned;
 
     /**
      * 阅读量只由 {@code incrementViewCount} 的原子 UPDATE 维护，不参与聚合整体写回，

@@ -1,11 +1,14 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { authApi } from '@/api'
 import AdminFilePicker from '@/components/admin/AdminFilePicker.vue'
 import { useAuthStore } from '@/stores/auth'
+import { clearRememberedCredentials } from '@/utils/rememberedCredentials'
 
 const auth = useAuthStore()
+const router = useRouter()
 const savingProfile = ref(false)
 const savingPassword = ref(false)
 const uploadingAvatar = ref(false)
@@ -79,10 +82,15 @@ async function savePassword() {
       oldPassword: passwordForm.oldPassword,
       newPassword: passwordForm.newPassword
     })
-    message.success('密码已修改，请使用新密码登录')
     passwordForm.oldPassword = ''
     passwordForm.newPassword = ''
     passwordForm.confirmPassword = ''
+    if (!clearRememberedCredentials()) {
+      message.warning('无法清除已保存的登录凭证，请在浏览器中清除此站点的数据')
+    }
+    auth.clearSession()
+    message.success('密码已修改，请使用新密码登录')
+    await router.replace({ name: 'login' })
   } finally {
     savingPassword.value = false
   }

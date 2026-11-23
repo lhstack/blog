@@ -31,15 +31,18 @@ export const useAuthStore = defineStore('auth', {
       this.profile = await authApi.profile()
       return this.profile
     },
+    clearSession() {
+      this.token = ''
+      this.profile = null
+      setToken('')
+    },
     async logout() {
       try {
         if (this.token) {
           await authApi.logout()
         }
       } finally {
-        this.token = ''
-        this.profile = null
-        setToken('')
+        this.clearSession()
       }
     }
   }

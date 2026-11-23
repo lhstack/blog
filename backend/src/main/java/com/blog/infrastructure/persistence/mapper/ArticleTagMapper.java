@@ -16,7 +16,14 @@ import java.util.List;
 @Mapper
 public interface ArticleTagMapper {
 
-    @Insert("INSERT OR IGNORE INTO blog_article_tag (article_id, tag_id) VALUES (#{articleId}, #{tagId})")
+    @Insert("""
+            INSERT INTO blog_article_tag (article_id, tag_id) VALUES (#{articleId}, #{tagId})
+            ON CONFLICT (article_id, tag_id) DO NOTHING
+            """)
+    @Insert(value = """
+            INSERT INTO blog_article_tag (article_id, tag_id) VALUES (#{articleId}, #{tagId})
+            ON DUPLICATE KEY UPDATE article_id = article_id
+            """, databaseId = "mysql")
     int link(@Param("articleId") Long articleId, @Param("tagId") Long tagId);
 
     @Delete("DELETE FROM blog_article_tag WHERE article_id = #{articleId}")

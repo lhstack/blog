@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
- * SQLite 没有原生 datetime 类型，统一以 'yyyy-MM-dd HH:mm:ss' 文本存储。
+ * 三种数据库统一以 'yyyy-MM-dd HH:mm:ss' 文本存储时间。
  * 文本格式保证字典序与时间序一致，因此可以直接用于 ORDER BY 与 BETWEEN。
  */
 @MappedTypes(LocalDateTime.class)

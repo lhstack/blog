@@ -11,5 +11,9 @@ public interface TypewriterMapper {
             INSERT INTO blog_typewriter_config (id, entries) VALUES (1, #{entries})
             ON CONFLICT(id) DO UPDATE SET entries = excluded.entries
             """)
+    @Insert(value = """
+            INSERT INTO blog_typewriter_config (id, entries) VALUES (1, #{entries})
+            ON DUPLICATE KEY UPDATE entries = #{entries}
+            """, databaseId = "mysql")
     void save(@Param("entries") String entries);
 }

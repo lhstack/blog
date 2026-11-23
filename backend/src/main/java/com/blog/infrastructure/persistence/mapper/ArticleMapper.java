@@ -20,7 +20,7 @@ import java.util.List;
 @Mapper
 public interface ArticleMapper {
 
-    /** 归档：按年月统计已发布文章。SQLite 用 substr 直接截取文本时间。 */
+    /** 归档：按年月截取文本时间并统计已发布文章。 */
     @Select("""
             SELECT substr(COALESCE(published_at, created_at), 1, 4) AS year,
                    substr(COALESCE(published_at, created_at), 6, 2) AS month,
@@ -74,7 +74,7 @@ public interface ArticleMapper {
             """)
     List<ArticlePo> selectPopularExcluding(@Param("articleId") Long articleId, @Param("limit") int limit);
 
-    /** 上一篇：发布时间更早（或同时间 id 更小）的最近一篇。SQLite 不支持行值比较，用显式逻辑。 */
+    /** 上一篇：发布时间更早（或同时间 id 更小）的最近一篇。 */
     @Select("""
             SELECT * FROM blog_article
             WHERE status = 'PUBLISHED'

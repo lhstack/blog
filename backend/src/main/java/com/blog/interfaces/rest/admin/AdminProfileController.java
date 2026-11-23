@@ -63,6 +63,7 @@ public class AdminProfileController {
     @PutMapping("/password")
     public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         authService.changePassword(tokenIssuer.currentUserId(), request.oldPassword(), request.newPassword());
+        tokenIssuer.revoke();
         return ApiResponse.ok();
     }
 

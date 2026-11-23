@@ -10,7 +10,7 @@ spring:
       enabled: true
   datasource:
     hikari:
-      pool-name: blog-sqlite-pool
+      pool-name: blog-db-pool
       maximum-pool-size: 8
       minimum-idle: 1
       connection-timeout: 10000
@@ -18,9 +18,7 @@ spring:
     init:
       mode: always
       encoding: UTF-8
-      schema-locations: classpath:db/schema.sql
-      # 默认不加载任何种子数据脚本：保持空库启动。
-      # 需要演示数据时，在开发环境另行指定 data-locations（见 db/demo-data.sql 约定）。
+      # 使用所选数据库的建表脚本；默认不加载种子数据。
       continue-on-error: false
   jackson:
     default-property-inclusion: non_null
@@ -87,9 +85,13 @@ blog:
   # 接口文档默认关闭（生产安全基线）；开发环境用 dev profile 打开
   api-doc:
     enabled: false
-  # SQLite 数据目录。默认相对启动工作目录 ./data；
-  # 建议部署时用 BLOG_DATA_DIR 指向固定绝对路径，避免换目录启动后指向另一个库。
+  # 附件、音乐及 SQLite 文件目录。生产建议使用固定绝对路径。
   data-dir: ${BLOG_DATA_DIR:./data}
+  database:
+    type: ${BLOG_DATABASE_TYPE:sqlite}
+    url: ${BLOG_DATABASE_URL:}
+    username: ${BLOG_DATABASE_USERNAME:}
+    password: ${BLOG_DATABASE_PASSWORD:}
   admin:
     username: admin
     password: admin123

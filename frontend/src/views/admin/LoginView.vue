@@ -3,12 +3,12 @@ import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { useAuthStore } from '@/stores/auth'
+import { clearRememberedCredentials, rememberedCredentialsKey } from '@/utils/rememberedCredentials'
 
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 
-const credentialsKey = 'blog-remembered-login-v1'
 const credentialsTtlMs = 7 * 24 * 60 * 60 * 1000
 const remembered = readRememberedCredentials()
 const form = reactive({ username: remembered?.username ?? '', password: remembered?.password ?? '' })
@@ -18,7 +18,7 @@ const loginError = ref('')
 
 function readRememberedCredentials() {
   try {
-    const raw = window.localStorage.getItem(credentialsKey)
+    const raw = window.localStorage.getItem(rememberedCredentialsKey)
     if (!raw) return null
     const { username, password, expiresAt } = JSON.parse(raw) ?? {}
     if (typeof username === 'string' && username && typeof password === 'string' && password &&
@@ -32,15 +32,6 @@ function readRememberedCredentials() {
   return null
 }
 
-function clearRememberedCredentials() {
-  try {
-    window.localStorage.removeItem(credentialsKey)
-    return true
-  } catch {
-    return false
-  }
-}
-
 function onRememberChange(event) {
   rememberCredentials.value = event.target.checked
   if (!rememberCredentials.value && !clearRememberedCredentials()) {
@@ -50,7 +41,7 @@ function onRememberChange(event) {
 
 function saveRememberedCredentials(credentials) {
   try {
-    window.localStorage.setItem(credentialsKey, JSON.stringify({
+    window.localStorage.setItem(rememberedCredentialsKey, JSON.stringify({
       ...credentials,
       expiresAt: Date.now() + credentialsTtlMs
     }))

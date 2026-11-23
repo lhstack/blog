@@ -16,5 +16,9 @@ public interface SiteIdentityMapper extends SiteIdentityRepository {
             INSERT INTO blog_site_identity (id, name, title, description) VALUES (1, #{name}, #{title}, #{description})
             ON CONFLICT(id) DO UPDATE SET name = excluded.name, title = excluded.title, description = excluded.description
             """)
+    @Insert(value = """
+            INSERT INTO blog_site_identity (id, name, title, description) VALUES (1, #{name}, #{title}, #{description})
+            ON DUPLICATE KEY UPDATE name = #{name}, title = #{title}, description = #{description}
+            """, databaseId = "mysql")
     void save(Identity identity);
 }

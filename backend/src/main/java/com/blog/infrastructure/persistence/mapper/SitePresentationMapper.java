@@ -24,6 +24,10 @@ public interface SitePresentationMapper {
             INSERT INTO blog_site_about (id, markdown) VALUES (1, #{markdown})
             ON CONFLICT(id) DO UPDATE SET markdown = excluded.markdown
             """)
+    @Insert(value = """
+            INSERT INTO blog_site_about (id, markdown) VALUES (1, #{markdown})
+            ON DUPLICATE KEY UPDATE markdown = #{markdown}
+            """, databaseId = "mysql")
     void saveAboutMarkdown(@Param("markdown") String markdown);
 
     @Select("SELECT id, name FROM blog_background_music ORDER BY sort_order, id")
@@ -45,11 +49,13 @@ public interface SitePresentationMapper {
             <foreach collection="ids" item="id" index="position">
               WHEN #{id} THEN (#{position} + 1)
             </foreach>
-            END
-            WHERE (SELECT COUNT(*) FROM blog_background_music) = #{size}
-              AND NOT EXISTS (SELECT 1 FROM blog_background_music WHERE id NOT IN
-                <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
-              )
+            ELSE sort_order END
+            WHERE (SELECT track_count FROM (
+                SELECT COUNT(*) AS track_count FROM blog_background_music
+                HAVING COUNT(CASE WHEN id IN
+                    <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+                    THEN 1 END) = COUNT(*)
+            ) AS playlist) = #{size}
             </script>
             """)
     int reorderTracks(@Param("ids") List<String> ids, @Param("size") int size);

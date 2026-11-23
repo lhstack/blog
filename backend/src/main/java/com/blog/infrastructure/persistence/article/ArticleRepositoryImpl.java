@@ -85,16 +85,9 @@ public class ArticleRepositoryImpl implements ArticleRepository {
         return articleMapper.selectLatestPublishedEntries(limit);
     }
 
-    /**
-     * 把用户输入转成 LIKE 模式：先转义 LIKE 元字符（含 MySQL 风格的 \\），再包上 % 通配。
-     * SQLite 的 LIKE 需要显式 ESCAPE 子句才能生效，这里用参数占位符传入模式，避免拼接注入。
-     */
+    /** 转义 LIKE 元字符，使用不受数据库反斜杠规则影响的显式转义符。 */
     private static String escapeLike(String keyword) {
-        String escaped = keyword
-                .replace("\\", "\\\\")
-                .replace("%", "\\%")
-                .replace("_", "\\_");
-        return "%" + escaped + "%";
+        return "%" + keyword.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
     }
 
     private QueryWrapper<ArticlePo> buildWrapper(ArticleQuery query) {
@@ -114,9 +107,8 @@ public class ArticleRepositoryImpl implements ArticleRepository {
             // 用户搜索词的 % 与 _ 必须当字面量：MyBatis-Plus 的 like() 直接拼进 LIKE 模式，
             // 不转义会让搜 "S%" 命中所有以 S 开头的文章。
             String pattern = escapeLike(query.keyword());
-            // SQLite 默认不以反斜杠为转义符，必须显式声明 ESCAPE，否则 \% 会被当成字面串。
-            wrapper.and(w -> w.apply("title LIKE {0} ESCAPE '\\'", pattern)
-                    .or().apply("summary LIKE {0} ESCAPE '\\'", pattern));
+            wrapper.and(w -> w.apply("LOWER(title) LIKE LOWER({0}) ESCAPE '!'", pattern)
+                    .or().apply("LOWER(summary) LIKE LOWER({0}) ESCAPE '!'", pattern));
         }
         if (query.from() != null) wrapper.ge("updated_at", query.from().toString());
         if (query.until() != null) wrapper.lt("updated_at", query.until().toString());
@@ -246,7 +238,7 @@ public class ArticleRepositoryImpl implements ArticleRepository {
                 po.getCategoryId(),
                 new LinkedHashSet<>(tagIds),
                 Article.Status.of(po.getStatus()),
-                Boolean.TRUE.equals(po.getPinned()),
+                Integer.valueOf(1).equals(po.getPinned()),
                 po.getViewCount() == null ? 0L : po.getViewCount(),
                 po.getCreatedAt(),
                 po.getUpdatedAt(),
@@ -262,7 +254,7 @@ public class ArticleRepositoryImpl implements ArticleRepository {
         po.setCover(article.cover());
         po.setCategoryId(article.categoryId());
         po.setStatus(article.status().name());
-        po.setPinned(article.pinned());
+        po.setPinned(article.pinned() ? 1 : 0);
         po.setViewCount(article.viewCount());
         po.setCreatedAt(article.createdAt());
         po.setUpdatedAt(article.updatedAt());
